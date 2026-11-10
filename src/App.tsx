@@ -15,6 +15,7 @@ import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Effects } from './components/Effects'
+import { Ocean } from './components/Ocean'
 import { ZONES, GEMS, type ZoneData } from './data/portfolio'
 import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
 import { sfx } from './game/audio'
@@ -137,6 +138,8 @@ const Scene = memo(function Scene(props: SceneProps) {
         mieCoefficient={0.006}
         mieDirectionalG={0.85}
       />
+
+      <Ocean quality={quality} />
 
       <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone)} cameraYawRef={cameraYawRef} />
 
