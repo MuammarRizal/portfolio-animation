@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   X,
   ExternalLink,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { PROJECTS, SKILLS_CATEGORIES, type ZoneData } from '../data/portfolio'
+import { sfx } from '../game/audio'
 
 interface PortfolioModalProps {
   zone: ZoneData | null
@@ -29,12 +30,22 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
   const [contactMessage, setContactMessage] = useState('')
   const [activeProjectFilter, setActiveProjectFilter] = useState<'all' | '3d' | 'fullstack'>('all')
 
+  const zoneId = zone?.id ?? null
+
+  // Chime in/out with the panel.
+  useEffect(() => {
+    if (!zoneId) return
+    sfx.uiOpen()
+    return () => sfx.uiClose()
+  }, [zoneId])
+
   if (!zone) return null
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     setFormSent(true)
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } })
+    sfx.confirm()
     setTimeout(() => {
       setFormSent(false)
       setContactName('')

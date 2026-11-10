@@ -16,6 +16,7 @@ import { PortfolioModal } from './components/PortfolioModal'
 import { LoadingScreen } from './components/LoadingScreen'
 import { ZONES, GEMS, type ZoneData } from './data/portfolio'
 import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
+import { sfx } from './game/audio'
 import type { QuestState } from './components/QuestTracker'
 import { getTerrainHeight, type PlayerState } from './game/world'
 
@@ -246,6 +247,7 @@ export default function App() {
   const onZoneChange = useCallback((zone: ZoneData | null) => {
     setActiveZone((prev) => (prev?.id === zone?.id ? prev : zone))
     if (!zone) return
+    sfx.zone()
     setQuests((q) => {
       if (zone.id === 'about' && !q.visitedAbout) return { ...q, visitedAbout: true }
       if (zone.id === 'projects' && !q.visitedProjects) return { ...q, visitedProjects: true }
@@ -275,6 +277,7 @@ export default function App() {
     if (totalGems > 0 && collectedGems.length === totalGems) {
       setQuests((q) => (q.allGemsCollected ? q : { ...q, allGemsCollected: true }))
       confetti({ particleCount: 160, spread: 90, origin: { y: 0.5 } })
+      sfx.zone()
     }
   }, [collectedGems.length, totalGems])
 

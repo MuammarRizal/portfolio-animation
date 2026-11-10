@@ -5,6 +5,7 @@ import type { KeyState } from '../hooks/useKeyboard'
 import { GEMS, ZONES, type ZoneData } from '../data/portfolio'
 import { findNearestCreature } from '../game/creatures'
 import type { CharacterPreset } from '../game/characters'
+import { sfx } from '../game/audio'
 import {
   clampToBoundary,
   getTerrainHeight,
@@ -148,6 +149,7 @@ export const Character: React.FC<CharacterProps> = ({
       velY.current = JUMP_FORCE
       isGrounded.current = false
       landingSquash.current = 1.25
+      sfx.jump()
     }
 
     if (!isGrounded.current) {
@@ -158,6 +160,7 @@ export const Character: React.FC<CharacterProps> = ({
         velY.current = 0
         isGrounded.current = true
         landingSquash.current = 0.72
+        sfx.land()
       }
     }
 
@@ -293,6 +296,7 @@ export const Character: React.FC<CharacterProps> = ({
       swingActive.current = true
       swingT.current = SWING_TIME
       swingHitDone.current = false
+      sfx.swing()
     }
 
     if (swingActive.current) {
@@ -321,7 +325,10 @@ export const Character: React.FC<CharacterProps> = ({
           const td = Math.hypot(tdx, tdz) || 1
           const fx = Math.sin(group.rotation.y)
           const fz = Math.cos(group.rotation.y)
-          if ((tdx / td) * fx + (tdz / td) * fz > 0.15) target.hit()
+          if ((tdx / td) * fx + (tdz / td) * fz > 0.15) {
+            target.hit()
+            sfx.hit()
+          }
         }
       }
 
@@ -354,7 +361,10 @@ export const Character: React.FC<CharacterProps> = ({
       const hd = Math.hypot(group.position.x - gem.x, group.position.z - gem.z)
       if (hd < 1.5) {
         const gemY = getTerrainHeight(gem.x, gem.z) + gem.y
-        if (Math.abs(group.position.y - gemY) < 2.0) onCollectGem(gem.id)
+        if (Math.abs(group.position.y - gemY) < 2.0) {
+          onCollectGem(gem.id)
+          sfx.gem()
+        }
       }
     }
   })

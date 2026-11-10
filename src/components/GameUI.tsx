@@ -20,6 +20,7 @@ import {
 import * as THREE from 'three'
 import { ZONES, type ZoneData } from '../data/portfolio'
 import type { CharacterPreset } from '../game/characters'
+import { isMuted, setMuted, subscribeMuted, sfx } from '../game/audio'
 import { Minimap } from './Minimap'
 import { QuestTracker, type QuestState } from './QuestTracker'
 import { VirtualJoystick } from './VirtualJoystick'
@@ -76,10 +77,13 @@ export const GameUI: React.FC<GameUIProps> = ({
   const [showHelp, setShowHelp] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showCharacters, setShowCharacters] = useState(false)
-  const [isAudioMuted, setIsAudioMuted] = useState(true)
+  const [isAudioMuted, setIsAudioMuted] = useState(isMuted)
   const [isSprintActive, setIsSprintActive] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isLandscape, setIsLandscape] = useState(false)
+
+  // Keep the speaker icon in sync with the shared audio state.
+  useEffect(() => subscribeMuted(setIsAudioMuted), [])
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
@@ -154,19 +158,34 @@ export const GameUI: React.FC<GameUIProps> = ({
   }
 
   const openSettingsPanel = () => {
-    setShowSettings((v) => !v)
+    const next = !showSettings
+    setShowSettings(next)
     setShowHelp(false)
     setShowCharacters(false)
+    if (next) sfx.uiOpen()
+    else sfx.uiClose()
   }
   const openHelpPanel = () => {
-    setShowHelp((v) => !v)
+    const next = !showHelp
+    setShowHelp(next)
     setShowSettings(false)
     setShowCharacters(false)
+    if (next) sfx.uiOpen()
+    else sfx.uiClose()
   }
   const openCharactersPanel = () => {
-    setShowCharacters((v) => !v)
+    const next = !showCharacters
+    setShowCharacters(next)
     setShowSettings(false)
     setShowHelp(false)
+    if (next) sfx.uiOpen()
+    else sfx.uiClose()
+  }
+
+  const toggleAudio = () => {
+    const next = !isAudioMuted
+    setMuted(next)
+    if (!next) sfx.confirm()
   }
 
   const toggleMobileSprint = () => {
@@ -236,7 +255,7 @@ export const GameUI: React.FC<GameUIProps> = ({
             <span className="hidden sm:inline max-w-[7rem] truncate text-[11px] font-bold">{character.name}</span>
           </button>
 
-          <button onClick={() => setIsAudioMuted(!isAudioMuted)} className={iconBtn} title={isAudioMuted ? 'Nyalakan SFX' : 'Matikan SFX'}>
+          <button onClick={toggleAudio} className={iconBtn} title={isAudioMuted ? 'Nyalakan SFX' : 'Matikan SFX'}>
             {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />}
           </button>
 

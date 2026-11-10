@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { VILLAGERS, npcRegistry, type NpcEntry, type VillagerDef } from '../game/npcs'
 import { BOUNDARY_RADIUS, getTerrainHeight, isWalkable, type PlayerState } from '../game/world'
+import { sfx } from '../game/audio'
 
 const WALK_SPEED = 1.5
 /** Player closer than this makes the villager stop, face him and possibly wave. */
@@ -69,6 +70,7 @@ const Villager: React.FC<{
       if (pd < 5 && waveT.current <= 0 && greetCooldown.current <= 0) {
         waveT.current = 1.8
         greetCooldown.current = 7 + Math.random() * 5
+        sfx.greet(1 - pd / GREET_DISTANCE)
       }
     } else if (mode.current === 'idle') {
       timer.current -= dt
