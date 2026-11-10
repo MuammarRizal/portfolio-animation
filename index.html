@@ -5,9 +5,85 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Muammar Rizal — Portfolio RPG 3D</title>
+    <style>
+      /* Pre-React boot screen: covers the gap while the JS bundle downloads.
+         Replaced automatically when React mounts into #root. */
+      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+      #boot-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(to bottom, #cfe9ff, #a9d8f5, #7cb8e6);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        z-index: 9999;
+      }
+      #boot-loader .mr {
+        font-size: clamp(4.5rem, 26vw, 11rem);
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.08em;
+        background: linear-gradient(135deg, #0369a1, #2563eb, #4338ca);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: boot-breathe 2.4s ease-in-out infinite;
+      }
+      #boot-loader .name {
+        margin-top: 0.5rem;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.42em;
+        color: rgba(30, 58, 138, 0.8);
+      }
+      #boot-loader .sub {
+        margin-top: 0.25rem;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: rgba(30, 58, 138, 0.55);
+      }
+      #boot-loader .bar {
+        margin-top: 2.5rem;
+        width: min(82vw, 340px);
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.6);
+        overflow: hidden;
+      }
+      #boot-loader .bar span {
+        display: block;
+        height: 100%;
+        width: 30%;
+        border-radius: 999px;
+        background: linear-gradient(to right, #0ea5e9, #2563eb, #6366f1);
+        animation: boot-slide 1.2s ease-in-out infinite;
+      }
+      @keyframes boot-breathe {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-6px) scale(1.025); }
+      }
+      @keyframes boot-slide {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(360%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-loader .mr, #boot-loader .bar span { animation: none; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-loader">
+        <span class="mr">MR</span>
+        <span class="name">Muammar Rizal</span>
+        <span class="sub">Portfolio RPG 3D</span>
+        <div class="bar"><span></span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

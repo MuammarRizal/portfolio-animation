@@ -12,6 +12,7 @@ import { WorldEnvironment } from './components/WorldEnvironment'
 import { Wildlife } from './components/Wildlife'
 import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
+import { LoadingScreen } from './components/LoadingScreen'
 import { ZONES, GEMS, type ZoneData } from './data/portfolio'
 import type { QuestState } from './components/QuestTracker'
 import { getTerrainHeight, type PlayerState } from './game/world'
@@ -54,6 +55,23 @@ const SunLight: React.FC<{ playerRef: React.MutableRefObject<PlayerState>; quali
   )
 }
 
+/** Fires once the scene has actually painted a few frames (post-suspense). */
+const SceneReadyProbe: React.FC<{ onReady: () => void; frames?: number }> = ({ onReady, frames = 3 }) => {
+  const count = useRef(0)
+  const done = useRef(false)
+
+  useFrame(() => {
+    if (done.current) return
+    count.current += 1
+    if (count.current >= frames) {
+      done.current = true
+      onReady()
+    }
+  })
+
+  return null
+}
+
 interface SceneProps {
   keys: React.MutableRefObject<KeyState>
   playerRef: React.MutableRefObject<PlayerState>
@@ -71,6 +89,7 @@ interface SceneProps {
   onCollectGem: (id: number) => void
   onOpenZone: (zone: ZoneData) => void
   onHunt: () => void
+  onSceneReady: () => void
 }
 
 const Scene = memo(function Scene(props: SceneProps) {
@@ -91,6 +110,7 @@ const Scene = memo(function Scene(props: SceneProps) {
     onCollectGem,
     onOpenZone,
     onHunt,
+    onSceneReady,
   } = props
 
   return (
@@ -139,6 +159,8 @@ const Scene = memo(function Scene(props: SceneProps) {
           onZoneChange={onZoneChange}
           onCollectGem={onCollectGem}
         />
+
+        <SceneReadyProbe onReady={onSceneReady} />
       </Suspense>
     </>
   )
@@ -171,6 +193,11 @@ export default function App() {
   const [collectedGems, setCollectedGems] = useState<number[]>([])
   const [hunts, setHunts] = useState(0)
   const [quality, setQuality] = useState<Quality>('high')
+
+  // First-load gate: keep the world hidden behind the loader until the 3D scene
+  // has really painted its first frames.
+  const [sceneReady, setSceneReady] = useState(false)
+  const [showLoader, setShowLoader] = useState(true)
 
   const [quests, setQuests] = useState<QuestState>({
     visitedAbout: false,
@@ -210,6 +237,8 @@ export default function App() {
   }, [])
 
   const onHunt = useCallback(() => setHunts((h) => h + 1), [])
+
+  const onSceneReady = useCallback(() => setSceneReady(true), [])
 
   // Attack is edge-triggered via a ref (consumed by the Character each swing)
   const triggerAttack = useCallback(() => {
@@ -284,6 +313,7 @@ export default function App() {
           onCollectGem={onCollectGem}
           onOpenZone={setModalZone}
           onHunt={onHunt}
+          onSceneReady={onSceneReady}
         />
       </Canvas>
 
@@ -307,6 +337,8 @@ export default function App() {
       />
 
       <PortfolioModal zone={modalZone} onClose={() => setModalZone(null)} />
+
+      {showLoader && <LoadingScreen sceneReady={sceneReady} onDone={() => setShowLoader(false)} />}
     </main>
   )
 }
