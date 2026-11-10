@@ -1,8 +1,8 @@
 import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
 import * as THREE from 'three'
 import type { ZoneData } from '../data/portfolio'
+import { WorldLabel } from './WorldLabel'
 
 interface ZonePlatformProps {
   zone: ZoneData
@@ -182,27 +182,13 @@ export const ZonePlatform: React.FC<ZonePlatformProps> = ({ zone, isInside, onTr
         />
       </mesh>
 
-      {/* 3D Title Floating in World */}
+      {/* 3D Title Floating in World (canvas texture — no external font fetch) */}
       <group position={[0, 3.9, 0]}>
-        <Text
-          fontSize={0.85}
-          color="#ffffff"
-          anchorX="center"
-          anchorY="middle"
-          outlineWidth={0.07}
-          outlineColor="#090d16"
-        >
-          {zone.title}
-        </Text>
-        <Text
-          position={[0, -0.55, 0]}
-          fontSize={0.38}
+        <WorldLabel
+          title={zone.title}
+          subtitle={isInside ? '▼ Tekan [E] atau Klik untuk Buka' : zone.subtitle}
           color={zone.color}
-          anchorX="center"
-          anchorY="middle"
-        >
-          {isInside ? '▼ Tekan [E] atau Klik untuk Buka' : zone.subtitle}
-        </Text>
+        />
       </group>
     </group>
   )
