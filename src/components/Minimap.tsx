@@ -11,6 +11,7 @@ import {
   TERRAIN_RADIUS,
 } from '../game/world'
 import { creatureRegistry } from '../game/creatures'
+import { npcRegistry } from '../game/npcs'
 
 interface MinimapProps {
   playerPos: THREE.Vector3
@@ -137,6 +138,13 @@ export const Minimap: React.FC<MinimapProps> = ({
     [playerPos, collectedIds]
   )
 
+  // Friendly villagers — always present, plotted so the world feels populated.
+  const villagers = useMemo(
+    () => Array.from(npcRegistry.values()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [playerPos, collectedIds]
+  )
+
   const playerCoord = { px: px(playerPos.x), py: py(playerPos.z) }
 
   return (
@@ -181,6 +189,24 @@ export const Minimap: React.FC<MinimapProps> = ({
               strokeWidth={0.4}
             />
           ))}
+
+          {/* Villagers: square markers so they read as humans, not animals */}
+          {villagers.map((npc) => {
+            const s = detailed ? 4.4 : 3.6
+            return (
+              <rect
+                key={npc.id}
+                x={px(npc.pos.x) - s / 2}
+                y={py(npc.pos.z) - s / 2}
+                width={s}
+                height={s}
+                rx={1}
+                fill={npc.color}
+                stroke="#ffffff"
+                strokeWidth={0.7}
+              />
+            )
+          })}
         </svg>
 
         {/* Zone teleport hotspots */}

@@ -15,12 +15,15 @@ import {
   Hand,
   Sword,
   Server,
+  UserRound,
 } from 'lucide-react'
 import * as THREE from 'three'
 import { ZONES, type ZoneData } from '../data/portfolio'
+import type { CharacterPreset } from '../game/characters'
 import { Minimap } from './Minimap'
 import { QuestTracker, type QuestState } from './QuestTracker'
 import { VirtualJoystick } from './VirtualJoystick'
+import { CharacterPicker } from './CharacterPicker'
 
 /** Tiny pill toggle used in the settings menu. */
 const Switch: React.FC<{ on: boolean }> = ({ on }) => (
@@ -40,6 +43,8 @@ interface GameUIProps {
   quests: QuestState
   quality: 'high' | 'low'
   onQualityChange: (quality: 'high' | 'low') => void
+  character: CharacterPreset
+  onCharacterChange: (id: string) => void
   onOpenZone: (zone: ZoneData) => void
   onTeleport: (zone: ZoneData) => void
   onVirtualMove: (dir: { x: number; y: number }) => void
@@ -59,6 +64,8 @@ export const GameUI: React.FC<GameUIProps> = ({
   quests,
   quality,
   onQualityChange,
+  character,
+  onCharacterChange,
   onOpenZone,
   onTeleport,
   onVirtualMove,
@@ -68,6 +75,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 }) => {
   const [showHelp, setShowHelp] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showCharacters, setShowCharacters] = useState(false)
   const [isAudioMuted, setIsAudioMuted] = useState(true)
   const [isSprintActive, setIsSprintActive] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -148,10 +156,17 @@ export const GameUI: React.FC<GameUIProps> = ({
   const openSettingsPanel = () => {
     setShowSettings((v) => !v)
     setShowHelp(false)
+    setShowCharacters(false)
   }
   const openHelpPanel = () => {
     setShowHelp((v) => !v)
     setShowSettings(false)
+    setShowCharacters(false)
+  }
+  const openCharactersPanel = () => {
+    setShowCharacters((v) => !v)
+    setShowSettings(false)
+    setShowHelp(false)
   }
 
   const toggleMobileSprint = () => {
@@ -212,6 +227,15 @@ export const GameUI: React.FC<GameUIProps> = ({
             <span>{hunts}</span>
           </div>
 
+          <button
+            onClick={openCharactersPanel}
+            className={`${iconBtn} flex items-center gap-1.5 ${showCharacters ? 'ring-2 ring-blue-400 text-slate-900' : ''}`}
+            title={`Ganti karakter — sekarang: ${character.name}`}
+          >
+            <UserRound className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline max-w-[7rem] truncate text-[11px] font-bold">{character.name}</span>
+          </button>
+
           <button onClick={() => setIsAudioMuted(!isAudioMuted)} className={iconBtn} title={isAudioMuted ? 'Nyalakan SFX' : 'Matikan SFX'}>
             {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />}
           </button>
@@ -251,6 +275,18 @@ export const GameUI: React.FC<GameUIProps> = ({
           <Minimap playerPos={playerPos} playerRotation={playerRotation} onTeleport={onTeleport} collectedIds={collectedIds} />
         </div>
       </div>
+
+      {/* Character picker */}
+      {showCharacters && (
+        <CharacterPicker
+          currentId={character.id}
+          onSelect={(id) => {
+            onCharacterChange(id)
+            setShowCharacters(false)
+          }}
+          onClose={() => setShowCharacters(false)}
+        />
+      )}
 
       {/* Settings Modal */}
       {showSettings && (

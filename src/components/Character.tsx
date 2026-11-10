@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import type { KeyState } from '../hooks/useKeyboard'
 import { GEMS, ZONES, type ZoneData } from '../data/portfolio'
 import { findNearestCreature } from '../game/creatures'
+import type { CharacterPreset } from '../game/characters'
 import {
   clampToBoundary,
   getTerrainHeight,
@@ -12,6 +13,7 @@ import {
 } from '../game/world'
 
 interface CharacterProps {
+  preset: CharacterPreset
   keys: React.MutableRefObject<KeyState>
   cameraYawRef: React.MutableRefObject<number>
   playerRef: React.MutableRefObject<PlayerState>
@@ -31,6 +33,7 @@ const SWING_TIME = 0.42
 const ATTACK_RANGE = 2.6
 
 export const Character: React.FC<CharacterProps> = ({
+  preset,
   keys,
   cameraYawRef,
   playerRef,
@@ -50,6 +53,7 @@ export const Character: React.FC<CharacterProps> = ({
   const rightArmRef = useRef<THREE.Mesh>(null)
   const shadowRef = useRef<THREE.Mesh>(null)
   const scarfRef = useRef<THREE.Mesh>(null)
+  const capeRef = useRef<THREE.Group>(null)
 
   // Physics state
   const velocity = useRef(new THREE.Vector3(0, 0, 0))
@@ -202,6 +206,12 @@ export const Character: React.FC<CharacterProps> = ({
       scarfRef.current.rotation.x = THREE.MathUtils.lerp(scarfRef.current.rotation.x, trailing + flutter, dt * 10)
     }
 
+    if (capeRef.current) {
+      const flutter = Math.sin(state.clock.elapsedTime * 8.5 + horizontalSpeed * 0.5) * 0.12
+      const trailing = isMoving ? 0.38 : 0.04
+      capeRef.current.rotation.x = THREE.MathUtils.lerp(capeRef.current.rotation.x, trailing + flutter, dt * 8)
+    }
+
     if (isAirborneNow) {
       const isAscending = velY.current > 0
       const pitch = isAscending ? -0.15 : 0.1
@@ -349,6 +359,13 @@ export const Character: React.FC<CharacterProps> = ({
     }
   })
 
+  const hairBase = (
+    <mesh position={[0, 0.87, 0]} castShadow>
+      <boxGeometry args={[0.49, 0.13, 0.49]} />
+      <meshStandardMaterial color={preset.hair} roughness={0.75} />
+    </mesh>
+  )
+
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
       <mesh ref={shadowRef} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -356,79 +373,213 @@ export const Character: React.FC<CharacterProps> = ({
         <meshBasicMaterial color="#050811" transparent opacity={0.4} />
       </mesh>
 
-      <group ref={bodyRef} position={[0, 0.95, 0]}>
-        <mesh position={[0, 0.65, 0]} castShadow>
-          <boxGeometry args={[0.45, 0.45, 0.45]} />
-          <meshStandardMaterial color="#fcd34d" roughness={0.4} />
-        </mesh>
-
-        <mesh position={[0, 0.85, 0]} castShadow>
-          <boxGeometry args={[0.47, 0.12, 0.47]} />
-          <meshStandardMaterial color="#3b82f6" roughness={0.3} />
-        </mesh>
-
-        <mesh ref={scarfRef} position={[0, 0.48, -0.22]} castShadow>
-          <boxGeometry args={[0.38, 0.08, 0.35]} />
-          <meshStandardMaterial color="#ef4444" roughness={0.5} />
-        </mesh>
-
-        <mesh position={[0, 0.65, 0.23]} castShadow>
-          <boxGeometry args={[0.36, 0.12, 0.08]} />
-          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.8} roughness={0.2} />
-        </mesh>
-
-        <mesh position={[0, 0.15, 0]} castShadow>
-          <boxGeometry args={[0.55, 0.6, 0.35]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.6} />
-        </mesh>
-
-        <mesh position={[0, 0.18, -0.22]} castShadow>
-          <boxGeometry args={[0.38, 0.45, 0.18]} />
-          <meshStandardMaterial color="#4f46e5" roughness={0.5} />
-        </mesh>
-
-        <group position={[-0.38, 0.35, 0]}>
-          <mesh ref={leftArmRef} position={[0, -0.25, 0]} castShadow>
-            <boxGeometry args={[0.16, 0.5, 0.18]} />
-            <meshStandardMaterial color="#334155" />
+      <group scale={preset.build}>
+        <group ref={bodyRef} position={[0, 0.95, 0]}>
+          {/* Head */}
+          <mesh position={[0, 0.65, 0]} castShadow>
+            <boxGeometry args={[0.45, 0.45, 0.45]} />
+            <meshStandardMaterial color={preset.skin} roughness={0.5} />
           </mesh>
-        </group>
 
-        <group position={[0.38, 0.35, 0]}>
-          <mesh ref={rightArmRef} position={[0, -0.25, 0]} castShadow>
-            <boxGeometry args={[0.16, 0.5, 0.18]} />
-            <meshStandardMaterial color="#334155" />
-            {/* Sword held in the right hand */}
-            <group position={[0, -0.3, 0.08]} rotation={[0.25, 0, 0]}>
-              <mesh position={[0, -0.02, 0]}>
-                <boxGeometry args={[0.07, 0.18, 0.07]} />
-                <meshStandardMaterial color="#78350f" />
+          {/* Eyes */}
+          <mesh position={[-0.1, 0.67, 0.231]}>
+            <boxGeometry args={[0.08, 0.08, 0.02]} />
+            <meshStandardMaterial color="#0f172a" />
+          </mesh>
+          <mesh position={[0.1, 0.67, 0.231]}>
+            <boxGeometry args={[0.08, 0.08, 0.02]} />
+            <meshStandardMaterial color="#0f172a" />
+          </mesh>
+
+          {/* Hair */}
+          {hairBase}
+          {preset.hairStyle === 'spiky' && (
+            <>
+              <mesh position={[-0.13, 0.98, 0.12]} rotation={[-0.3, 0, -0.35]}>
+                <coneGeometry args={[0.09, 0.26, 5]} />
+                <meshStandardMaterial color={preset.hair} roughness={0.8} />
               </mesh>
-              <mesh position={[0, 0.1, 0]}>
-                <boxGeometry args={[0.28, 0.05, 0.09]} />
-                <meshStandardMaterial color="#a16207" metalness={0.6} roughness={0.3} />
+              <mesh position={[0, 1.0, 0.06]} rotation={[-0.2, 0, 0]}>
+                <coneGeometry args={[0.1, 0.3, 5]} />
+                <meshStandardMaterial color={preset.hair} roughness={0.8} />
               </mesh>
-              <mesh position={[0, 0.58, 0]} castShadow>
-                <boxGeometry args={[0.08, 0.92, 0.02]} />
-                <meshStandardMaterial color="#e2e8f0" metalness={0.75} roughness={0.2} emissive="#38bdf8" emissiveIntensity={0.12} />
+              <mesh position={[0.13, 0.98, 0.12]} rotation={[-0.3, 0, 0.35]}>
+                <coneGeometry args={[0.09, 0.26, 5]} />
+                <meshStandardMaterial color={preset.hair} roughness={0.8} />
+              </mesh>
+            </>
+          )}
+          {preset.hairStyle === 'long' && (
+            <mesh position={[0, 0.5, -0.26]} castShadow>
+              <boxGeometry args={[0.42, 0.72, 0.14]} />
+              <meshStandardMaterial color={preset.hair} roughness={0.8} />
+            </mesh>
+          )}
+          {preset.hairStyle === 'bun' && (
+            <mesh position={[0, 0.84, -0.3]} castShadow>
+              <sphereGeometry args={[0.17, 10, 10]} />
+              <meshStandardMaterial color={preset.hair} roughness={0.8} />
+            </mesh>
+          )}
+
+          {/* Head accessory: headband */}
+          {preset.accessory === 'headband' && (
+            <mesh position={[0, 0.83, 0]}>
+              <boxGeometry args={[0.54, 0.09, 0.54]} />
+              <meshStandardMaterial color={preset.accessoryColor} roughness={0.55} />
+            </mesh>
+          )}
+
+          {/* Head accessory: wizard hat */}
+          {preset.accessory === 'hat' && (
+            <group position={[0, 0.9, 0]}>
+              <mesh position={[0, 0.36, 0]} castShadow>
+                <coneGeometry args={[0.33, 0.72, 6]} />
+                <meshStandardMaterial color={preset.accessoryColor} roughness={0.6} flatShading />
+              </mesh>
+              <mesh position={[0, 0.02, 0]} castShadow>
+                <cylinderGeometry args={[0.44, 0.44, 0.07, 10]} />
+                <meshStandardMaterial color={preset.accessoryColor} roughness={0.6} />
+              </mesh>
+              <mesh position={[0, 0.45, 0]}>
+                <sphereGeometry args={[0.08, 8, 8]} />
+                <meshStandardMaterial color={preset.glow} emissive={preset.glow} emissiveIntensity={1.3} roughness={0.2} />
               </mesh>
             </group>
+          )}
+
+          {/* Head accessory: horned helm */}
+          {preset.accessory === 'helm' && (
+            <group>
+              <mesh position={[0, 0.85, 0]} castShadow>
+                <boxGeometry args={[0.53, 0.3, 0.53]} />
+                <meshStandardMaterial color={preset.accessoryColor} roughness={0.4} metalness={0.4} />
+              </mesh>
+              <mesh position={[-0.24, 0.98, 0]} rotation={[0, 0, 0.55]}>
+                <coneGeometry args={[0.07, 0.36, 5]} />
+                <meshStandardMaterial color="#e2e8f0" metalness={0.6} roughness={0.25} />
+              </mesh>
+              <mesh position={[0.24, 0.98, 0]} rotation={[0, 0, -0.55]}>
+                <coneGeometry args={[0.07, 0.36, 5]} />
+                <meshStandardMaterial color="#e2e8f0" metalness={0.6} roughness={0.25} />
+              </mesh>
+              <mesh position={[0, 0.85, 0.31]}>
+                <boxGeometry args={[0.4, 0.22, 0.03]} />
+                <meshStandardMaterial color={preset.glow} emissive={preset.glow} emissiveIntensity={0.6} transparent opacity={0.55} />
+              </mesh>
+            </group>
+          )}
+
+          {/* Neck scarf (always present, tinted) */}
+          <mesh ref={scarfRef} position={[0, 0.48, -0.22]} castShadow>
+            <boxGeometry args={[0.38, 0.08, 0.35]} />
+            <meshStandardMaterial
+              color={preset.accessory === 'scarf' ? preset.accessoryColor : preset.accent}
+              roughness={0.5}
+            />
+          </mesh>
+          {preset.accessory === 'scarf' && (
+            <mesh position={[0.1, 0.24, 0.2]} rotation={[0.15, 0, 0.1]} castShadow>
+              <boxGeometry args={[0.14, 0.42, 0.06]} />
+              <meshStandardMaterial color={preset.accessoryColor} roughness={0.5} />
+            </mesh>
+          )}
+
+          {/* Chest core (glow) */}
+          <mesh position={[0, 0.65, 0.23]} castShadow>
+            <boxGeometry args={[0.36, 0.12, 0.08]} />
+            <meshStandardMaterial color={preset.glow} emissive={preset.glow} emissiveIntensity={0.9} roughness={0.2} />
+          </mesh>
+
+          {/* Torso */}
+          <mesh position={[0, 0.15, 0]} castShadow>
+            <boxGeometry args={[0.55, 0.6, 0.35]} />
+            <meshStandardMaterial color={preset.top} roughness={0.6} />
+          </mesh>
+
+          {/* Belt */}
+          <mesh position={[0, 0.32, 0]} castShadow>
+            <boxGeometry args={[0.58, 0.1, 0.38]} />
+            <meshStandardMaterial color={preset.accent} roughness={0.5} />
+          </mesh>
+
+          {/* Back pack / shoulder guard */}
+          <mesh position={[0, 0.18, -0.22]} castShadow>
+            <boxGeometry args={[0.38, 0.45, 0.18]} />
+            <meshStandardMaterial color={preset.accent} roughness={0.5} />
+          </mesh>
+
+          {/* Cape */}
+          {preset.accessory === 'cape' && (
+            <group ref={capeRef} position={[0, 0.55, -0.24]}>
+              <mesh position={[0, -0.5, 0]} castShadow>
+                <boxGeometry args={[0.66, 1.02, 0.06]} />
+                <meshStandardMaterial color={preset.accessoryColor} roughness={0.7} />
+              </mesh>
+            </group>
+          )}
+
+          {/* Arms */}
+          <group position={[-0.38, 0.35, 0]}>
+            <mesh ref={leftArmRef} position={[0, -0.25, 0]} castShadow>
+              <boxGeometry args={[0.16, 0.5, 0.18]} />
+              <meshStandardMaterial color={preset.top} />
+              <mesh position={[0, -0.3, 0]}>
+                <boxGeometry args={[0.17, 0.14, 0.19]} />
+                <meshStandardMaterial color={preset.skin} roughness={0.6} />
+              </mesh>
+            </mesh>
+          </group>
+
+          <group position={[0.38, 0.35, 0]}>
+            <mesh ref={rightArmRef} position={[0, -0.25, 0]} castShadow>
+              <boxGeometry args={[0.16, 0.5, 0.18]} />
+              <meshStandardMaterial color={preset.top} />
+              <mesh position={[0, -0.3, 0]}>
+                <boxGeometry args={[0.17, 0.14, 0.19]} />
+                <meshStandardMaterial color={preset.skin} roughness={0.6} />
+              </mesh>
+              {/* Sword held in the right hand */}
+              <group position={[0, -0.3, 0.08]} rotation={[0.25, 0, 0]}>
+                <mesh position={[0, -0.02, 0]}>
+                  <boxGeometry args={[0.07, 0.18, 0.07]} />
+                  <meshStandardMaterial color="#78350f" />
+                </mesh>
+                <mesh position={[0, 0.1, 0]}>
+                  <boxGeometry args={[0.28, 0.05, 0.09]} />
+                  <meshStandardMaterial color="#a16207" metalness={0.6} roughness={0.3} />
+                </mesh>
+                <mesh position={[0, 0.58, 0]} castShadow>
+                  <boxGeometry args={[0.08, 0.92, 0.02]} />
+                  <meshStandardMaterial color="#e2e8f0" metalness={0.75} roughness={0.2} emissive={preset.glow} emissiveIntensity={0.25} />
+                </mesh>
+              </group>
+            </mesh>
+          </group>
+        </group>
+
+        {/* Legs */}
+        <group position={[-0.16, 0.55, 0]}>
+          <mesh ref={leftLegRef} position={[0, -0.25, 0]} castShadow>
+            <boxGeometry args={[0.18, 0.55, 0.2]} />
+            <meshStandardMaterial color={preset.pants} />
+            <mesh position={[0, -0.21, 0.05]}>
+              <boxGeometry args={[0.2, 0.16, 0.27]} />
+              <meshStandardMaterial color={preset.boots} roughness={0.7} />
+            </mesh>
           </mesh>
         </group>
-      </group>
 
-      <group position={[-0.16, 0.55, 0]}>
-        <mesh ref={leftLegRef} position={[0, -0.25, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.55, 0.2]} />
-          <meshStandardMaterial color="#0f172a" />
-        </mesh>
-      </group>
-
-      <group position={[0.16, 0.55, 0]}>
-        <mesh ref={rightLegRef} position={[0, -0.25, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.55, 0.2]} />
-          <meshStandardMaterial color="#0f172a" />
-        </mesh>
+        <group position={[0.16, 0.55, 0]}>
+          <mesh ref={rightLegRef} position={[0, -0.25, 0]} castShadow>
+            <boxGeometry args={[0.18, 0.55, 0.2]} />
+            <meshStandardMaterial color={preset.pants} />
+            <mesh position={[0, -0.21, 0.05]}>
+              <boxGeometry args={[0.2, 0.16, 0.27]} />
+              <meshStandardMaterial color={preset.boots} roughness={0.7} />
+            </mesh>
+          </mesh>
+        </group>
       </group>
     </group>
   )

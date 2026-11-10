@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, memo, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, memo, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Sky } from '@react-three/drei'
 import * as THREE from 'three'
@@ -10,10 +10,12 @@ import { FollowCamera } from './components/FollowCamera'
 import { ZonePlatform } from './components/ZonePlatform'
 import { WorldEnvironment } from './components/WorldEnvironment'
 import { Wildlife } from './components/Wildlife'
+import { NpcVillagers } from './components/NpcVillagers'
 import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
 import { LoadingScreen } from './components/LoadingScreen'
 import { ZONES, GEMS, type ZoneData } from './data/portfolio'
+import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
 import type { QuestState } from './components/QuestTracker'
 import { getTerrainHeight, type PlayerState } from './game/world'
 
@@ -73,6 +75,7 @@ const SceneReadyProbe: React.FC<{ onReady: () => void; frames?: number }> = ({ o
 }
 
 interface SceneProps {
+  character: CharacterPreset
   keys: React.MutableRefObject<KeyState>
   playerRef: React.MutableRefObject<PlayerState>
   cameraYawRef: React.MutableRefObject<number>
@@ -94,6 +97,7 @@ interface SceneProps {
 
 const Scene = memo(function Scene(props: SceneProps) {
   const {
+    character,
     keys,
     playerRef,
     cameraYawRef,
@@ -137,6 +141,7 @@ const Scene = memo(function Scene(props: SceneProps) {
       <Suspense fallback={null}>
         <WorldEnvironment collectedIds={collectedGems} grassCount={quality === 'low' ? 1600 : 4000} />
         <Wildlife quality={quality} playerRef={playerRef} onHunt={onHunt} />
+        <NpcVillagers playerRef={playerRef} quality={quality} />
 
         {ZONES.map((zone) => (
           <ZonePlatform
@@ -148,6 +153,7 @@ const Scene = memo(function Scene(props: SceneProps) {
         ))}
 
         <Character
+          preset={character}
           keys={keys}
           cameraYawRef={cameraYawRef}
           playerRef={playerRef}
@@ -198,6 +204,25 @@ export default function App() {
   // has really painted its first frames.
   const [sceneReady, setSceneReady] = useState(false)
   const [showLoader, setShowLoader] = useState(true)
+
+  // Playable hero — persisted so the pick survives a reload.
+  const [characterId, setCharacterId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('mr-character') ?? DEFAULT_CHARACTER_ID
+    } catch {
+      return DEFAULT_CHARACTER_ID
+    }
+  })
+  const character = useMemo(() => getCharacter(characterId), [characterId])
+
+  const handleCharacterChange = useCallback((id: string) => {
+    setCharacterId(id)
+    try {
+      localStorage.setItem('mr-character', id)
+    } catch {
+      /* storage unavailable — selection just won't persist */
+    }
+  }, [])
 
   const [quests, setQuests] = useState<QuestState>({
     visitedAbout: false,
@@ -297,6 +322,7 @@ export default function App() {
         gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
       >
         <Scene
+          character={character}
           keys={keys}
           playerRef={playerRef}
           cameraYawRef={cameraYawRef}
@@ -328,6 +354,8 @@ export default function App() {
         quests={quests}
         quality={quality}
         onQualityChange={setQuality}
+        character={character}
+        onCharacterChange={handleCharacterChange}
         onOpenZone={(zone) => setModalZone(zone)}
         onTeleport={handleTeleport}
         onVirtualMove={handleVirtualMove}
