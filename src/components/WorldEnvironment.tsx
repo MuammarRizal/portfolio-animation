@@ -1,0 +1,378 @@
+import React, { useMemo, useRef, useLayoutEffect } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+import { GEMS } from '../data/portfolio'
+import { GrassField } from './GrassField'
+import {
+  ARCHWAYS,
+  BOUNDARY_RADIUS,
+  DECORATIONS,
+  TERRAIN_RADIUS,
+  distanceToPath,
+  getTerrainHeight,
+  type Decoration,
+} from '../game/world'
+
+interface WorldEnvironmentProps {
+  collectedIds: number[]
+  grassCount?: number
+}
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0)
+const TERRAIN_SIZE = TERRAIN_RADIUS * 2 + 30
+
+// ---- shared geometries (baked local offsets so scale grows from the ground) ----
+const G = {
+  trunk: (() => {
+    const g = new THREE.CylinderGeometry(0.28, 0.42, 1.8, 6)
+    g.translate(0, 0.9, 0)
+    return g
+  })(),
+  leaf1: (() => {
+    const g = new THREE.ConeGeometry(1.6, 2.0, 6)
+    g.translate(0, 2.3, 0)
+    return g
+  })(),
+  leaf2: (() => {
+    const g = new THREE.ConeGeometry(1.15, 1.7, 6)
+    g.translate(0, 3.5, 0)
+    return g
+  })(),
+  rock: (() => {
+    const g = new THREE.DodecahedronGeometry(0.9, 0)
+    g.translate(0, 0.55, 0)
+    return g
+  })(),
+  ruin: (() => {
+    const g = new THREE.BoxGeometry(0.7, 3.4, 0.7)
+    g.translate(0, 1.7, 0)
+    return g
+  })(),
+  rune: (() => {
+    const g = new THREE.PlaneGeometry(0.24, 2.2)
+    g.translate(0, 1.7, 0.37)
+    return g
+  })(),
+  lanternPost: (() => {
+    const g = new THREE.CylinderGeometry(0.11, 0.15, 1.6, 6)
+    g.translate(0, 0.8, 0)
+    return g
+  })(),
+  lanternOrb: (() => {
+    const g = new THREE.SphereGeometry(0.22, 10, 10)
+    g.translate(0, 1.7, 0)
+    return g
+  })(),
+  stone: (() => {
+    const g = new THREE.BoxGeometry(1.25, 3.4, 0.8)
+    g.translate(0, 1.7, 0)
+    return g
+  })(),
+}
+
+const M = {
+  trunk: new THREE.MeshStandardMaterial({ color: '#6b4a2b', roughness: 0.85 }),
+  leaf1: new THREE.MeshStandardMaterial({ color: '#2f7d32', roughness: 0.6, flatShading: true }),
+  leaf2: new THREE.MeshStandardMaterial({ color: '#4caf50', roughness: 0.5, flatShading: true }),
+  rock: new THREE.MeshStandardMaterial({ color: '#8b95a1', roughness: 0.9, flatShading: true }),
+  ruin: new THREE.MeshStandardMaterial({ color: '#a3adb9', roughness: 0.8 }),
+  rune: new THREE.MeshStandardMaterial({
+    color: '#a855f7',
+    emissive: '#7c3aed',
+    emissiveIntensity: 0.9,
+    side: THREE.DoubleSide,
+  }),
+  lanternPost: new THREE.MeshStandardMaterial({ color: '#9aa6b2', roughness: 0.7 }),
+  lanternOrb: new THREE.MeshStandardMaterial({ color: '#fcd34d', emissive: '#f59e0b', emissiveIntensity: 1.4 }),
+  stone: new THREE.MeshStandardMaterial({ color: '#8d99a6', roughness: 0.9, flatShading: true }),
+}
+
+// ---- terrain palette ----
+const C_GRASS = new THREE.Color('#6aa03f')
+const C_GRASS_LIGHT = new THREE.Color('#83c04d')
+const C_PATH = new THREE.Color('#cdb98e')
+const C_SAND = new THREE.Color('#d8c79b')
+const C_ROCK = new THREE.Color('#9aa3ac')
+const C_SNOW = new THREE.Color('#eef3f7')
+const C_CLIFF = new THREE.Color('#7c848d')
+
+/** One instanced draw call for a batch of identical decorations. */
+const InstancedBatch: React.FC<{
+  geometry: THREE.BufferGeometry
+  material: THREE.Material
+  items: Decoration[]
+  castShadow?: boolean
+}> = ({ geometry, material, items, castShadow = true }) => {
+  const ref = useRef<THREE.InstancedMesh>(null!)
+
+  useLayoutEffect(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const m = new THREE.Matrix4()
+    const q = new THREE.Quaternion()
+    const p = new THREE.Vector3()
+    const s = new THREE.Vector3()
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]
+      q.setFromAxisAngle(Y_AXIS, it.rot)
+      p.set(it.x, it.y, it.z)
+      s.setScalar(it.scale)
+      m.compose(p, q, s)
+      mesh.setMatrixAt(i, m)
+    }
+    mesh.instanceMatrix.needsUpdate = true
+    mesh.computeBoundingSphere()
+  }, [items, geometry])
+
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[geometry, material, items.length]}
+      castShadow={castShadow}
+      receiveShadow
+    />
+  )
+}
+
+export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds, grassCount = 4000 }) => {
+  const gemsGroupRef = useRef<THREE.Group>(null)
+
+  const gems = useMemo(() => GEMS, [])
+
+  useFrame((state, delta) => {
+    const grp = gemsGroupRef.current
+    if (!grp) return
+    const t = state.clock.elapsedTime
+    grp.children.forEach((child, idx) => {
+      child.rotation.y += delta * 1.5
+      const baseY = (child.userData.baseY as number) ?? 1.5
+      child.position.y = baseY + Math.sin(t * 3 + idx) * 0.18
+    })
+  })
+
+  const parts = useMemo(
+    () => ({
+      tree: DECORATIONS.filter((d) => d.type === 'tree'),
+      rock: DECORATIONS.filter((d) => d.type === 'rock'),
+      ruin: DECORATIONS.filter((d) => d.type === 'ruin'),
+      lantern: DECORATIONS.filter((d) => d.type === 'lantern'),
+    }),
+    []
+  )
+
+  // Standing-stone ring marking the walkable boundary
+  const boundaryStones = useMemo<Decoration[]>(
+    () =>
+      Array.from({ length: 46 }, (_, i) => {
+        const a = (i / 46) * Math.PI * 2
+        const r = BOUNDARY_RADIUS + 1.4
+        const x = Math.cos(a) * r
+        const z = Math.sin(a) * r
+        return {
+          type: 'rock',
+          x,
+          y: getTerrainHeight(x, z),
+          z,
+          scale: 1.15 + ((i * 29) % 7) / 12,
+          rot: a + 0.25,
+        }
+      }),
+    []
+  )
+
+  // Terrain surface: displaced plane, vertex-coloured grass / road / rock / snow,
+  // edges dropped into cliffs so the island reads as floating.
+  const terrainGeo = useMemo(() => {
+    const seg = 120
+    const geo = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, seg, seg)
+    geo.rotateX(-Math.PI / 2)
+    const pos = geo.attributes.position as THREE.BufferAttribute
+    const colors = new Float32Array(pos.count * 3)
+    const tmp = new THREE.Color()
+    const half = TERRAIN_SIZE * 0.5
+
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const z = pos.getZ(i)
+      const r = Math.hypot(x, z)
+      const terrainY = getTerrainHeight(x, z)
+
+      let cliff = 0
+      if (r > TERRAIN_RADIUS) {
+        const t = Math.min(1, (r - TERRAIN_RADIUS) / (half - TERRAIN_RADIUS))
+        cliff = t * t * 44
+      }
+      pos.setY(i, terrainY - cliff)
+
+      tmp.copy(C_GRASS)
+      const n = (Math.sin(x * 0.6) * Math.cos(z * 0.7) + 1) * 0.5
+      tmp.lerp(C_GRASS_LIGHT, n * 0.55)
+
+      const pd = distanceToPath(x, z)
+      if (pd < 2.8 && r < TERRAIN_RADIUS) tmp.lerp(C_PATH, 1 - pd / 2.8)
+
+      if (r > TERRAIN_RADIUS - 5 && r <= TERRAIN_RADIUS) {
+        tmp.lerp(C_SAND, ((r - (TERRAIN_RADIUS - 5)) / 5) * 0.6)
+      }
+      if (cliff > 0) tmp.lerp(C_CLIFF, Math.min(1, cliff / 12))
+      if (terrainY > 6) tmp.lerp(C_ROCK, Math.min(1, (terrainY - 6) / 7))
+      if (terrainY > 13) tmp.lerp(C_SNOW, Math.min(1, (terrainY - 13) / 4))
+
+      colors[i * 3] = tmp.r
+      colors[i * 3 + 1] = tmp.g
+      colors[i * 3 + 2] = tmp.b
+    }
+
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geo.computeVertexNormals()
+    return geo
+  }, [])
+
+  return (
+    <group>
+      {/* 1. TERRAIN SURFACE */}
+      <mesh geometry={terrainGeo} receiveShadow>
+        <meshStandardMaterial vertexColors roughness={0.95} metalness={0} />
+      </mesh>
+
+      {/* Floating island underside (inverted rock cone) */}
+      <mesh position={[0, -27, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[TERRAIN_RADIUS + 1, 46, 24]} />
+        <meshStandardMaterial color="#6b7280" roughness={0.95} flatShading />
+      </mesh>
+
+      {/* 2. BOUNDARY: standing-stone ring + translucent energy wall */}
+      <InstancedBatch geometry={G.stone} material={M.stone} items={boundaryStones} castShadow={false} />
+      <mesh position={[0, 6, 0]}>
+        <cylinderGeometry args={[BOUNDARY_RADIUS, BOUNDARY_RADIUS, 12, 72, 1, true]} />
+        <meshBasicMaterial
+          color="#7dd3fc"
+          transparent
+          opacity={0.07}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh position={[0, 12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[BOUNDARY_RADIUS - 0.35, BOUNDARY_RADIUS + 0.35, 96]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* 3. WIND-SWEPT GRASS */}
+      <GrassField count={grassCount} />
+
+      {/* 4. CENTRAL SPAWN SANCTUARY */}
+      <mesh receiveShadow position={[0, 0.05, 0]}>
+        <circleGeometry args={[6.5, 40]} />
+        <meshStandardMaterial color="#d8cdb4" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[5.7, 6.1, 40]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.7} />
+      </mesh>
+      <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[3.0, 3.3, 32]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0.5} />
+      </mesh>
+
+      {/* 5. NORSE-STYLE STONE ARCHWAYS ALONG THE ROADS */}
+      {ARCHWAYS.map((arch, idx) => {
+        const y = getTerrainHeight(arch.x, arch.z)
+        return (
+          <group key={`arch-${idx}`} position={[arch.x, y, arch.z]} rotation={[0, arch.rot, 0]}>
+            <mesh position={[-2.4, 3, 0]} castShadow>
+              <boxGeometry args={[1.0, 6, 1.0]} />
+              <meshStandardMaterial color="#aab4c0" roughness={0.85} flatShading />
+            </mesh>
+            <mesh position={[2.4, 3, 0]} castShadow>
+              <boxGeometry args={[1.0, 6, 1.0]} />
+              <meshStandardMaterial color="#aab4c0" roughness={0.85} flatShading />
+            </mesh>
+            <mesh position={[0, 6.3, 0]} castShadow>
+              <boxGeometry args={[6.4, 0.9, 1.2]} />
+              <meshStandardMaterial color="#c3ccd7" roughness={0.8} flatShading />
+            </mesh>
+            <mesh position={[0, 6.3, 0.65]}>
+              <planeGeometry args={[3.6, 0.3]} />
+              <meshStandardMaterial color="#38bdf8" emissive="#0ea5e9" emissiveIntensity={1} />
+            </mesh>
+          </group>
+        )
+      })}
+
+      {/* 6. STEPPING-STONE ELEVATIONS */}
+      <group position={[0, getTerrainHeight(0, -22), -22]}>
+        <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
+          <cylinderGeometry args={[2.0, 2.3, 1.0, 8]} />
+          <meshStandardMaterial color="#9aa6b2" roughness={0.75} flatShading />
+        </mesh>
+        <mesh castShadow receiveShadow position={[-4.5, 1.2, -3]}>
+          <cylinderGeometry args={[1.6, 1.9, 2.4, 8]} />
+          <meshStandardMaterial color="#9aa6b2" roughness={0.75} flatShading />
+        </mesh>
+        <mesh castShadow receiveShadow position={[4.5, 1.2, -3]}>
+          <cylinderGeometry args={[1.6, 1.9, 2.4, 8]} />
+          <meshStandardMaterial color="#9aa6b2" roughness={0.75} flatShading />
+        </mesh>
+      </group>
+      <group position={[0, getTerrainHeight(0, 22), 22]}>
+        <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
+          <cylinderGeometry args={[2.0, 2.3, 1.0, 8]} />
+          <meshStandardMaterial color="#9aa6b2" roughness={0.75} flatShading />
+        </mesh>
+      </group>
+
+      {/* 7. DECORATIONS (instanced — ~8 draw calls for the whole realm) */}
+      {parts.tree.length > 0 && (
+        <>
+          <InstancedBatch geometry={G.trunk} material={M.trunk} items={parts.tree} />
+          <InstancedBatch geometry={G.leaf1} material={M.leaf1} items={parts.tree} />
+          <InstancedBatch geometry={G.leaf2} material={M.leaf2} items={parts.tree} />
+        </>
+      )}
+      {parts.rock.length > 0 && <InstancedBatch geometry={G.rock} material={M.rock} items={parts.rock} />}
+      {parts.ruin.length > 0 && (
+        <>
+          <InstancedBatch geometry={G.ruin} material={M.ruin} items={parts.ruin} />
+          <InstancedBatch geometry={G.rune} material={M.rune} items={parts.ruin} castShadow={false} />
+        </>
+      )}
+      {parts.lantern.length > 0 && (
+        <>
+          <InstancedBatch geometry={G.lanternPost} material={M.lanternPost} items={parts.lantern} />
+          <InstancedBatch
+            geometry={G.lanternOrb}
+            material={M.lanternOrb}
+            items={parts.lantern}
+            castShadow={false}
+          />
+        </>
+      )}
+
+      {/* 8. COLLECTIBLE GEMS (emissive glow, no point lights) */}
+      <group ref={gemsGroupRef}>
+        {gems.map((gem) => {
+          if (collectedIds.includes(gem.id)) return null
+          const y = getTerrainHeight(gem.x, gem.z) + gem.y
+          return (
+            <group key={gem.id} position={[gem.x, y, gem.z]} userData={{ baseY: y }}>
+              <mesh castShadow>
+                <octahedronGeometry args={[0.45, 0]} />
+                <meshStandardMaterial
+                  color={gem.color}
+                  emissive={gem.color}
+                  emissiveIntensity={1.1}
+                  roughness={0.1}
+                />
+              </mesh>
+              <mesh scale={1.7}>
+                <octahedronGeometry args={[0.45, 0]} />
+                <meshBasicMaterial color={gem.color} transparent opacity={0.18} depthWrite={false} />
+              </mesh>
+            </group>
+          )
+        })}
+      </group>
+    </group>
+  )
+}
