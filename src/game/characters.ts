@@ -1,6 +1,8 @@
-// Playable hero presets. The Character component renders the same blocky rig,
-// but every colour, accessory and body proportion comes from here — so picking a
-// character is instant (no asset swap, no reload).
+// Playable hero presets. Each preset points at a real rigged GLB (see
+// src/game/models.ts); the colour fields are still used by the 2D character
+// picker swatches, so a preset keeps both its model key and its palette.
+
+import type { ModelKey } from './models'
 
 export type HairStyle = 'short' | 'spiky' | 'long' | 'bun'
 export type AccessoryKind = 'cape' | 'hat' | 'headband' | 'scarf' | 'helm'
@@ -11,6 +13,8 @@ export interface CharacterPreset {
   title: string
   emoji: string
   desc: string
+  /** Which rigged GLB to render for this hero. */
+  model: ModelKey
   /** Horizontal body width multiplier (0.9 – 1.1). */
   build: number
   skin: string
@@ -33,6 +37,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     title: 'Penjaga Gerbang',
     emoji: '🛡️',
     desc: 'Baju besi baja, jubah merah menyala, dan pedang energi biru. Seimbang untuk semua medan.',
+    model: 'knight',
     build: 1.08,
     skin: '#f2c39b',
     hair: '#1f2937',
@@ -51,6 +56,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     title: 'Peramu Sihir',
     emoji: '🧙',
     desc: 'Jubah ungu berkilau dengan topi lancip dan inti sihir yang berpendar terang.',
+    model: 'mage',
     build: 0.96,
     skin: '#e8b48a',
     hair: '#f59e0b',
@@ -69,6 +75,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     title: 'Pelacak Jejak',
     emoji: '🏹',
     desc: 'Pakaian rimba hijau, ikat kepala merah, dan gaya rambut acak-acakan siap berlari.',
+    model: 'rogueHooded',
     build: 1.0,
     skin: '#d9a06b',
     hair: '#78350f',
@@ -87,6 +94,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     title: 'Peneliti Reruntuhan',
     emoji: '🏺',
     desc: 'Mantel cokelat gurun, syal biru, dan sanggul rapi. Ahli membaca prasasti kuno.',
+    model: 'rogue',
     build: 1.02,
     skin: '#f0c8a0',
     hair: '#0f172a',
@@ -105,6 +113,7 @@ export const CHARACTER_PRESETS: CharacterPreset[] = [
     title: 'Wali Kegelapan',
     emoji: '⚔️',
     desc: 'Armor hitam pekat dengan helm bertanduk dan aura inti berwarna indigo.',
+    model: 'barbarian',
     build: 1.05,
     skin: '#c98a5b',
     hair: '#111827',

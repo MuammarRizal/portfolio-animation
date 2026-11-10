@@ -1,6 +1,8 @@
-// Friendly human villagers that roam the realm. They are decorative NPCs —
-// never huntable — and expose a live registry so the radar can plot them.
+// Friendly villagers that roam the realm. They are decorative NPCs — never
+// huntable — and expose a live registry so the radar can plot them. Each one
+// renders a real rigged GLB (src/game/models.ts).
 import type { Vector3 } from 'three'
+import type { ModelKey } from './models'
 import { ZONES } from '../data/portfolio'
 
 export interface NpcEntry {
@@ -14,8 +16,6 @@ export interface NpcEntry {
 /** Shared registry so the minimap reads the same villagers that are rendered. */
 export const npcRegistry = new Map<string, NpcEntry>()
 
-export type NpcHairStyle = 'short' | 'spiky' | 'long' | 'bun'
-
 export interface VillagerDef {
   id: string
   name: string
@@ -24,12 +24,10 @@ export interface VillagerDef {
   home: [number, number]
   /** Max wander distance from home. */
   wander: number
-  skin: string
-  hair: string
-  hairStyle: NpcHairStyle
-  top: string
+  /** Which rigged GLB to render for this villager. */
+  model: ModelKey
+  /** Radar dot colour. */
   accent: string
-  pants: string
 }
 
 /** World position of a realm outpost. */
@@ -53,12 +51,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Penjaga Alun-Alun',
     home: homeAt(null, 4.5, 6.5),
     wander: 4,
-    skin: '#e0b089',
-    hair: '#d1d5db',
-    hairStyle: 'short',
-    top: '#0e7490',
+    model: 'knight',
     accent: '#22d3ee',
-    pants: '#334155',
   },
   {
     id: 'npc-dharma',
@@ -66,12 +60,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Pemandu Pemula',
     home: homeAt(null, -5.5, 4.5),
     wander: 3.5,
-    skin: '#f0c69f',
-    hair: '#4c1d95',
-    hairStyle: 'long',
-    top: '#be185d',
+    model: 'rogue',
     accent: '#f472b6',
-    pants: '#831843',
   },
   {
     id: 'npc-arca',
@@ -79,12 +69,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Juru Bahasa Kuno',
     home: homeAt('about', 5, -6),
     wander: 4,
-    skin: '#dbab7f',
-    hair: '#78350f',
-    hairStyle: 'bun',
-    top: '#1d4ed8',
+    model: 'mage',
     accent: '#60a5fa',
-    pants: '#1e3a8a',
   },
   {
     id: 'npc-ava',
@@ -92,12 +78,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Perakit Mesin',
     home: homeAt('projects', -5, -5),
     wander: 4,
-    skin: '#f2c39b',
-    hair: '#dc2626',
-    hairStyle: 'spiky',
-    top: '#7c3aed',
+    model: 'rogueHooded',
     accent: '#c084fc',
-    pants: '#4c1d95',
   },
   {
     id: 'npc-biner',
@@ -105,12 +87,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Pengantar Paket Data',
     home: homeAt('projects', 6, 5),
     wander: 5,
-    skin: '#c98a5b',
-    hair: '#111827',
-    hairStyle: 'short',
-    top: '#f59e0b',
+    model: 'rogue',
     accent: '#fcd34d',
-    pants: '#78350f',
   },
   {
     id: 'npc-sage',
@@ -118,12 +96,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Penjaga Pengetahuan',
     home: homeAt('skills', 4, 6),
     wander: 4,
-    skin: '#e8b48a',
-    hair: '#e2e8f0',
-    hairStyle: 'long',
-    top: '#047857',
+    model: 'mage',
     accent: '#34d399',
-    pants: '#064e3b',
   },
   {
     id: 'npc-api',
@@ -131,12 +105,8 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Penjaga Mercusuar',
     home: homeAt('contact', -4, 6),
     wander: 4,
-    skin: '#d9a06b',
-    hair: '#0f172a',
-    hairStyle: 'short',
-    top: '#b91c1c',
+    model: 'barbarian',
     accent: '#fb923c',
-    pants: '#7f1d1d',
   },
   {
     id: 'npc-rimba',
@@ -144,11 +114,7 @@ export const VILLAGERS: VillagerDef[] = [
     role: 'Penjelajah Cilik',
     home: homeAt(null, 0, 9),
     wander: 6,
-    skin: '#f0c8a0',
-    hair: '#a16207',
-    hairStyle: 'spiky',
-    top: '#15803d',
+    model: 'rogueHooded',
     accent: '#a3e635',
-    pants: '#14532d',
   },
 ]

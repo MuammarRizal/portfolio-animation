@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Sky, PerformanceMonitor } from '@react-three/drei'
+import { Sky, PerformanceMonitor, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import confetti from 'canvas-confetti'
 
@@ -18,6 +18,7 @@ import { Effects } from './components/Effects'
 import { Ocean } from './components/Ocean'
 import { ZONES, GEMS, type ZoneData } from './data/portfolio'
 import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
+import { MODELS, type ModelKey } from './game/models'
 import { sfx } from './game/audio'
 import type { QuestState } from './components/QuestTracker'
 import { getTerrainHeight, type PlayerState } from './game/world'
@@ -120,6 +121,15 @@ const Scene = memo(function Scene(props: SceneProps) {
     onSceneReady,
   } = props
 
+  // Pull every character GLB into the loader cache up front. The hero and the
+  // villagers share the same five models, so this both warms the NPCs and makes
+  // swapping the playable hero instant (no suspense blank-out on switch).
+  useEffect(() => {
+    for (const key of Object.keys(MODELS) as ModelKey[]) {
+      useGLTF.preload(MODELS[key].url, false, true)
+    }
+  }, [])
+
   return (
     <>
       <color attach="background" args={['#bfe3ff']} />
@@ -146,7 +156,9 @@ const Scene = memo(function Scene(props: SceneProps) {
       <Suspense fallback={null}>
         <WorldEnvironment collectedIds={collectedGems} grassCount={quality === 'low' ? 1600 : 4000} />
         <Wildlife quality={quality} playerRef={playerRef} onHunt={onHunt} />
-        <NpcVillagers playerRef={playerRef} quality={quality} />
+        <Suspense fallback={null}>
+          <NpcVillagers playerRef={playerRef} quality={quality} />
+        </Suspense>
 
         {ZONES.map((zone) => (
           <ZonePlatform
@@ -167,6 +179,7 @@ const Scene = memo(function Scene(props: SceneProps) {
           virtualSprintRef={virtualSprintRef}
           attackRef={attackRef}
           collectedRef={collectedRef}
+          quality={quality}
           onZoneChange={onZoneChange}
           onCollectGem={onCollectGem}
         />

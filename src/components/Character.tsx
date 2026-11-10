@@ -1,10 +1,13 @@
-import { useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useAnimations, useGLTF } from '@react-three/drei'
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import * as THREE from 'three'
 import type { KeyState } from '../hooks/useKeyboard'
 import { GEMS, ZONES, type ZoneData } from '../data/portfolio'
 import { findNearestCreature } from '../game/creatures'
 import type { CharacterPreset } from '../game/characters'
+import { CLIP, MODELS, modelScale } from '../game/models'
 import { sfx } from '../game/audio'
 import {
   clampToBoundary,
@@ -23,6 +26,7 @@ interface CharacterProps {
   virtualSprintRef: React.MutableRefObject<boolean>
   attackRef: React.MutableRefObject<boolean>
   collectedRef: React.MutableRefObject<Set<number>>
+  quality?: 'high' | 'low'
   onZoneChange: (zone: ZoneData | null) => void
   onCollectGem: (id: number) => void
 }
@@ -30,8 +34,13 @@ interface CharacterProps {
 const PLAYER_RADIUS = 0.42
 const GRAVITY = -26
 const JUMP_FORCE = 10.5
+/** Fallback swing length if the attack clip has not resolved yet. */
 const SWING_TIME = 0.42
+/** How long the landing pose holds before locomotion takes over again. */
+const LAND_TIME = 0.6
 const ATTACK_RANGE = 2.6
+const RUN_SPEED = 11.5
+const WALK_SPEED = 6.4
 
 export const Character: React.FC<CharacterProps> = ({
   preset,
@@ -43,18 +52,32 @@ export const Character: React.FC<CharacterProps> = ({
   virtualSprintRef,
   attackRef,
   collectedRef,
+  quality = 'high',
   onZoneChange,
   onCollectGem,
 }) => {
   const groupRef = useRef<THREE.Group>(null)
-  const bodyRef = useRef<THREE.Group>(null)
-  const leftLegRef = useRef<THREE.Mesh>(null)
-  const rightLegRef = useRef<THREE.Mesh>(null)
-  const leftArmRef = useRef<THREE.Mesh>(null)
-  const rightArmRef = useRef<THREE.Mesh>(null)
+  const tiltRef = useRef<THREE.Group>(null)
   const shadowRef = useRef<THREE.Mesh>(null)
-  const scarfRef = useRef<THREE.Mesh>(null)
-  const capeRef = useRef<THREE.Group>(null)
+
+  // Rigged GLB + its animations. Draco off (no gstatic CDN dependency), meshopt
+  // on (drei bundles the decoder, and the models are meshopt-compressed).
+  const { scene, animations } = useGLTF(MODELS[preset.model].url, false, true)
+  const model = useMemo(() => cloneSkeleton(scene), [scene])
+  const { actions } = useAnimations(animations, model)
+
+  // Every character clone gets its own skeleton, so each needs its own shadow flags.
+  useLayoutEffect(() => {
+    model.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (mesh.isMesh) {
+        mesh.castShadow = quality === 'high'
+        // Skinned bounds are the bind pose, which sits outside most animation
+        // poses — keep them on screen instead of popping out.
+        mesh.frustumCulled = false
+      }
+    })
+  }, [model, quality])
 
   // Physics state
   const velocity = useRef(new THREE.Vector3(0, 0, 0))
@@ -62,17 +85,37 @@ export const Character: React.FC<CharacterProps> = ({
   const velY = useRef(0)
   const isGrounded = useRef(true)
   const targetRotation = useRef(0)
-  const walkCycle = useRef(0)
   const rollAngle = useRef(0)
-  const landingSquash = useRef(1)
   const lastZoneId = useRef<string | null>(null)
+  const landTimer = useRef(0)
+
+  // Animation state
+  const activeClip = useRef<string | null>(null)
 
   // Sword combat
   const swingActive = useRef(false)
   const swingT = useRef(0)
+  const swingTotal = useRef(SWING_TIME)
   const swingHitDone = useRef(false)
 
-  useFrame((state, delta) => {
+  /** Cross-fade into `name`. `once` plays the clip a single time and holds. */
+  const fadeTo = (name: string, fade: number, once = false) => {
+    if (activeClip.current === name) return
+    const next = actions[name]
+    if (!next) return
+    const prev = activeClip.current ? actions[activeClip.current] : null
+    if (prev && prev !== next) prev.fadeOut(fade)
+    next.reset()
+    next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, once ? 1 : Infinity)
+    next.clampWhenFinished = once
+    next.enabled = true
+    next.setEffectiveWeight(1)
+    next.fadeIn(fade)
+    next.play()
+    activeClip.current = name
+  }
+
+  useFrame((_state, delta) => {
     const group = groupRef.current
     if (!group) return
 
@@ -117,7 +160,7 @@ export const Character: React.FC<CharacterProps> = ({
 
     const worldLen = Math.hypot(worldX, worldZ)
     const magnitude = inputLength > 0 ? Math.min(1, inputLength) : 1
-    const baseSpeed = (isRunning ? 11.5 : 6.4) * magnitude
+    const baseSpeed = (isRunning ? RUN_SPEED : WALK_SPEED) * magnitude
 
     if (isMoving && worldLen > 0.001) {
       const normX = worldX / worldLen
@@ -148,7 +191,6 @@ export const Character: React.FC<CharacterProps> = ({
     if (jumpPressed && isGrounded.current) {
       velY.current = JUMP_FORCE
       isGrounded.current = false
-      landingSquash.current = 1.25
       sfx.jump()
     }
 
@@ -159,12 +201,10 @@ export const Character: React.FC<CharacterProps> = ({
         posY.current = 0
         velY.current = 0
         isGrounded.current = true
-        landingSquash.current = 0.72
+        landTimer.current = LAND_TIME
         sfx.land()
       }
     }
-
-    landingSquash.current = THREE.MathUtils.lerp(landingSquash.current, 1.0, dt * 12)
 
     // 4. APPLY HORIZONTAL MOVEMENT + COLLISION + BOUNDARY
     const candidate = { x: group.position.x + velocity.current.x * dt, z: group.position.z + velocity.current.z * dt }
@@ -191,7 +231,7 @@ export const Character: React.FC<CharacterProps> = ({
     while (diff > Math.PI) diff -= Math.PI * 2
     group.rotation.y += diff * dt * 14
 
-    // 6. PROCEDURAL ANIMATION
+    // 6. ANIMATION
     const horizontalSpeed = Math.hypot(velocity.current.x, velocity.current.z)
     const isAirborneNow = !isGrounded.current
 
@@ -203,120 +243,49 @@ export const Character: React.FC<CharacterProps> = ({
       if (shadowMat) shadowMat.opacity = Math.max(0.08, 0.4 * heightFactor)
     }
 
-    if (scarfRef.current) {
-      const flutter = Math.sin(state.clock.elapsedTime * 15 + horizontalSpeed) * 0.3
-      const trailing = isMoving ? -0.4 : 0
-      scarfRef.current.rotation.x = THREE.MathUtils.lerp(scarfRef.current.rotation.x, trailing + flutter, dt * 10)
+    // Gentle bank into turns (roll around the model's forward axis).
+    if (tiltRef.current) {
+      tiltRef.current.rotation.z = THREE.MathUtils.lerp(tiltRef.current.rotation.z, rollAngle.current * 0.5, dt * 8)
     }
 
-    if (capeRef.current) {
-      const flutter = Math.sin(state.clock.elapsedTime * 8.5 + horizontalSpeed * 0.5) * 0.12
-      const trailing = isMoving ? 0.38 : 0.04
-      capeRef.current.rotation.x = THREE.MathUtils.lerp(capeRef.current.rotation.x, trailing + flutter, dt * 8)
-    }
+    if (landTimer.current > 0) landTimer.current -= dt
 
-    if (isAirborneNow) {
-      const isAscending = velY.current > 0
-      const pitch = isAscending ? -0.15 : 0.1
-
-      if (bodyRef.current) {
-        bodyRef.current.position.y = 0.95 * landingSquash.current
-        bodyRef.current.scale.set(
-          1 / Math.sqrt(landingSquash.current),
-          landingSquash.current,
-          1 / Math.sqrt(landingSquash.current)
-        )
-        bodyRef.current.rotation.x = THREE.MathUtils.lerp(bodyRef.current.rotation.x, pitch, dt * 10)
-        bodyRef.current.rotation.z = rollAngle.current
-      }
-
-      if (leftLegRef.current) leftLegRef.current.rotation.x = THREE.MathUtils.lerp(leftLegRef.current.rotation.x, -0.65, dt * 12)
-      if (rightLegRef.current) rightLegRef.current.rotation.x = THREE.MathUtils.lerp(rightLegRef.current.rotation.x, -0.45, dt * 12)
-
-      if (leftArmRef.current) {
-        leftArmRef.current.rotation.x = THREE.MathUtils.lerp(leftArmRef.current.rotation.x, 0.4, dt * 12)
-        leftArmRef.current.rotation.z = THREE.MathUtils.lerp(leftArmRef.current.rotation.z, -0.5, dt * 12)
-      }
-      if (rightArmRef.current) {
-        rightArmRef.current.rotation.x = THREE.MathUtils.lerp(rightArmRef.current.rotation.x, 0.4, dt * 12)
-        rightArmRef.current.rotation.z = THREE.MathUtils.lerp(rightArmRef.current.rotation.z, 0.5, dt * 12)
-      }
-    } else if (horizontalSpeed > 0.2) {
-      const speedMultiplier = isRunning ? 3.6 : 2.8
-      walkCycle.current += dt * horizontalSpeed * speedMultiplier
-      const swing = Math.sin(walkCycle.current) * (isRunning ? 0.85 : 0.55)
-      const bob = Math.abs(Math.sin(walkCycle.current)) * (isRunning ? 0.14 : 0.08)
-      const forwardLean = isRunning ? 0.22 : 0.1
-
-      if (bodyRef.current) {
-        bodyRef.current.position.y = (0.95 + bob) * landingSquash.current
-        bodyRef.current.scale.set(
-          1 / Math.sqrt(landingSquash.current),
-          landingSquash.current,
-          1 / Math.sqrt(landingSquash.current)
-        )
-        bodyRef.current.rotation.x = THREE.MathUtils.lerp(bodyRef.current.rotation.x, forwardLean, dt * 10)
-        bodyRef.current.rotation.z = rollAngle.current + Math.sin(walkCycle.current * 0.5) * 0.06
-      }
-
-      if (leftLegRef.current) leftLegRef.current.rotation.x = swing
-      if (rightLegRef.current) rightLegRef.current.rotation.x = -swing
-
-      if (leftArmRef.current) {
-        leftArmRef.current.rotation.x = -swing * 0.9
-        leftArmRef.current.rotation.z = THREE.MathUtils.lerp(leftArmRef.current.rotation.z, -0.15, dt * 8)
-      }
-      if (rightArmRef.current) {
-        rightArmRef.current.rotation.x = swing * 0.9
-        rightArmRef.current.rotation.z = THREE.MathUtils.lerp(rightArmRef.current.rotation.z, 0.15, dt * 8)
+    if (swingActive.current) {
+      fadeTo(CLIP.attack, 0.06, true)
+    } else if (isAirborneNow) {
+      const ascending = velY.current > 0
+      fadeTo(ascending ? CLIP.jumpStart : CLIP.jumpIdle, 0.12, ascending)
+    } else if (landTimer.current > 0) {
+      fadeTo(CLIP.jumpLand, 0.1, true)
+    } else if (horizontalSpeed > 0.4) {
+      const loco = isRunning ? CLIP.run : CLIP.walk
+      fadeTo(loco, 0.18)
+      const action = actions[loco]
+      // Match the cycle to the actual speed so the feet do not skate.
+      if (action) {
+        action.setEffectiveTimeScale(THREE.MathUtils.clamp(horizontalSpeed / (isRunning ? RUN_SPEED : WALK_SPEED), 0.6, 1.6))
       }
     } else {
-      const idleBob = Math.sin(state.clock.elapsedTime * 2.2) * 0.02
-      if (bodyRef.current) {
-        bodyRef.current.position.y = THREE.MathUtils.lerp(bodyRef.current.position.y, 0.95 + idleBob, dt * 8)
-        bodyRef.current.scale.set(1, 1, 1)
-        bodyRef.current.rotation.x = THREE.MathUtils.lerp(bodyRef.current.rotation.x, 0, dt * 8)
-        bodyRef.current.rotation.z = THREE.MathUtils.lerp(bodyRef.current.rotation.z, 0, dt * 8)
-      }
-      if (leftLegRef.current) leftLegRef.current.rotation.x = THREE.MathUtils.lerp(leftLegRef.current.rotation.x, 0, dt * 10)
-      if (rightLegRef.current) rightLegRef.current.rotation.x = THREE.MathUtils.lerp(rightLegRef.current.rotation.x, 0, dt * 10)
-      if (leftArmRef.current) {
-        leftArmRef.current.rotation.x = THREE.MathUtils.lerp(leftArmRef.current.rotation.x, 0, dt * 10)
-        leftArmRef.current.rotation.z = THREE.MathUtils.lerp(leftArmRef.current.rotation.z, -0.05, dt * 10)
-      }
-      if (rightArmRef.current) {
-        rightArmRef.current.rotation.x = THREE.MathUtils.lerp(rightArmRef.current.rotation.x, 0, dt * 10)
-        rightArmRef.current.rotation.z = THREE.MathUtils.lerp(rightArmRef.current.rotation.z, 0.05, dt * 10)
-      }
+      fadeTo(CLIP.idle, 0.22)
     }
 
-    // 6b. SWORD SWING — trigger, animate the right arm, land the hit
+    // 6b. SWORD SWING — trigger, play the attack once, land the hit
     if (attackRef.current && !swingActive.current) {
       attackRef.current = false
       swingActive.current = true
-      swingT.current = SWING_TIME
       swingHitDone.current = false
+      const clip = actions[CLIP.attack]?.getClip()
+      swingTotal.current = clip && clip.duration > 0 ? clip.duration : SWING_TIME
+      swingT.current = swingTotal.current
       sfx.swing()
     }
 
     if (swingActive.current) {
       swingT.current -= dt
-      const t = 1 - Math.max(0, swingT.current) / SWING_TIME
-
-      if (rightArmRef.current) {
-        let armX: number
-        if (t < 0.22) armX = THREE.MathUtils.lerp(0, -1.6, t / 0.22)
-        else if (t < 0.6) armX = THREE.MathUtils.lerp(-1.6, 1.2, (t - 0.22) / 0.38)
-        else armX = THREE.MathUtils.lerp(1.2, 0, (t - 0.6) / 0.4)
-        rightArmRef.current.rotation.x = armX
-        rightArmRef.current.rotation.z =
-          t < 0.6
-            ? THREE.MathUtils.lerp(0.05, -0.4, Math.min(1, t / 0.6))
-            : THREE.MathUtils.lerp(-0.4, 0.05, (t - 0.6) / 0.4)
-      }
+      const t = 1 - Math.max(0, swingT.current) / swingTotal.current
 
       // Land the hit on the strike frames.
-      if (!swingHitDone.current && t >= 0.5) {
+      if (!swingHitDone.current && t >= 0.45) {
         swingHitDone.current = true
         const target = findNearestCreature(group.position.x, group.position.z, ATTACK_RANGE)
         if (target) {
@@ -369,226 +338,16 @@ export const Character: React.FC<CharacterProps> = ({
     }
   })
 
-  const hairBase = (
-    <mesh position={[0, 0.87, 0]} castShadow>
-      <boxGeometry args={[0.49, 0.13, 0.49]} />
-      <meshStandardMaterial color={preset.hair} roughness={0.75} />
-    </mesh>
-  )
-
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
       <mesh ref={shadowRef} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.55, 32]} />
+        <circleGeometry args={[0.5, 32]} />
         <meshBasicMaterial color="#050811" transparent opacity={0.4} />
       </mesh>
 
-      <group scale={preset.build}>
-        <group ref={bodyRef} position={[0, 0.95, 0]}>
-          {/* Head */}
-          <mesh position={[0, 0.65, 0]} castShadow>
-            <boxGeometry args={[0.45, 0.45, 0.45]} />
-            <meshStandardMaterial color={preset.skin} roughness={0.5} />
-          </mesh>
-
-          {/* Eyes */}
-          <mesh position={[-0.1, 0.67, 0.231]}>
-            <boxGeometry args={[0.08, 0.08, 0.02]} />
-            <meshStandardMaterial color="#0f172a" />
-          </mesh>
-          <mesh position={[0.1, 0.67, 0.231]}>
-            <boxGeometry args={[0.08, 0.08, 0.02]} />
-            <meshStandardMaterial color="#0f172a" />
-          </mesh>
-
-          {/* Hair */}
-          {hairBase}
-          {preset.hairStyle === 'spiky' && (
-            <>
-              <mesh position={[-0.13, 0.98, 0.12]} rotation={[-0.3, 0, -0.35]}>
-                <coneGeometry args={[0.09, 0.26, 5]} />
-                <meshStandardMaterial color={preset.hair} roughness={0.8} />
-              </mesh>
-              <mesh position={[0, 1.0, 0.06]} rotation={[-0.2, 0, 0]}>
-                <coneGeometry args={[0.1, 0.3, 5]} />
-                <meshStandardMaterial color={preset.hair} roughness={0.8} />
-              </mesh>
-              <mesh position={[0.13, 0.98, 0.12]} rotation={[-0.3, 0, 0.35]}>
-                <coneGeometry args={[0.09, 0.26, 5]} />
-                <meshStandardMaterial color={preset.hair} roughness={0.8} />
-              </mesh>
-            </>
-          )}
-          {preset.hairStyle === 'long' && (
-            <mesh position={[0, 0.5, -0.26]} castShadow>
-              <boxGeometry args={[0.42, 0.72, 0.14]} />
-              <meshStandardMaterial color={preset.hair} roughness={0.8} />
-            </mesh>
-          )}
-          {preset.hairStyle === 'bun' && (
-            <mesh position={[0, 0.84, -0.3]} castShadow>
-              <sphereGeometry args={[0.17, 10, 10]} />
-              <meshStandardMaterial color={preset.hair} roughness={0.8} />
-            </mesh>
-          )}
-
-          {/* Head accessory: headband */}
-          {preset.accessory === 'headband' && (
-            <mesh position={[0, 0.83, 0]}>
-              <boxGeometry args={[0.54, 0.09, 0.54]} />
-              <meshStandardMaterial color={preset.accessoryColor} roughness={0.55} />
-            </mesh>
-          )}
-
-          {/* Head accessory: wizard hat */}
-          {preset.accessory === 'hat' && (
-            <group position={[0, 0.9, 0]}>
-              <mesh position={[0, 0.36, 0]} castShadow>
-                <coneGeometry args={[0.33, 0.72, 6]} />
-                <meshStandardMaterial color={preset.accessoryColor} roughness={0.6} flatShading />
-              </mesh>
-              <mesh position={[0, 0.02, 0]} castShadow>
-                <cylinderGeometry args={[0.44, 0.44, 0.07, 10]} />
-                <meshStandardMaterial color={preset.accessoryColor} roughness={0.6} />
-              </mesh>
-              <mesh position={[0, 0.45, 0]}>
-                <sphereGeometry args={[0.08, 8, 8]} />
-                <meshStandardMaterial color={preset.glow} emissive={preset.glow} emissiveIntensity={1.3} roughness={0.2} />
-              </mesh>
-            </group>
-          )}
-
-          {/* Head accessory: horned helm */}
-          {preset.accessory === 'helm' && (
-            <group>
-              <mesh position={[0, 0.85, 0]} castShadow>
-                <boxGeometry args={[0.53, 0.3, 0.53]} />
-                <meshStandardMaterial color={preset.accessoryColor} roughness={0.4} metalness={0.4} />
-              </mesh>
-              <mesh position={[-0.24, 0.98, 0]} rotation={[0, 0, 0.55]}>
-                <coneGeometry args={[0.07, 0.36, 5]} />
-                <meshStandardMaterial color="#e2e8f0" metalness={0.6} roughness={0.25} />
-              </mesh>
-              <mesh position={[0.24, 0.98, 0]} rotation={[0, 0, -0.55]}>
-                <coneGeometry args={[0.07, 0.36, 5]} />
-                <meshStandardMaterial color="#e2e8f0" metalness={0.6} roughness={0.25} />
-              </mesh>
-              <mesh position={[0, 0.85, 0.31]}>
-                <boxGeometry args={[0.4, 0.22, 0.03]} />
-                <meshStandardMaterial color={preset.glow} emissive={preset.glow} emissiveIntensity={0.6} transparent opacity={0.55} />
-              </mesh>
-            </group>
-          )}
-
-          {/* Neck scarf (always present, tinted) */}
-          <mesh ref={scarfRef} position={[0, 0.48, -0.22]} castShadow>
-            <boxGeometry args={[0.38, 0.08, 0.35]} />
-            <meshStandardMaterial
-              color={preset.accessory === 'scarf' ? preset.accessoryColor : preset.accent}
-              roughness={0.5}
-            />
-          </mesh>
-          {preset.accessory === 'scarf' && (
-            <mesh position={[0.1, 0.24, 0.2]} rotation={[0.15, 0, 0.1]} castShadow>
-              <boxGeometry args={[0.14, 0.42, 0.06]} />
-              <meshStandardMaterial color={preset.accessoryColor} roughness={0.5} />
-            </mesh>
-          )}
-
-          {/* Chest core (glow) */}
-          <mesh position={[0, 0.65, 0.23]} castShadow>
-            <boxGeometry args={[0.36, 0.12, 0.08]} />
-            <meshStandardMaterial color={preset.glow} emissive={preset.glow} emissiveIntensity={0.9} roughness={0.2} />
-          </mesh>
-
-          {/* Torso */}
-          <mesh position={[0, 0.15, 0]} castShadow>
-            <boxGeometry args={[0.55, 0.6, 0.35]} />
-            <meshStandardMaterial color={preset.top} roughness={0.6} />
-          </mesh>
-
-          {/* Belt */}
-          <mesh position={[0, 0.32, 0]} castShadow>
-            <boxGeometry args={[0.58, 0.1, 0.38]} />
-            <meshStandardMaterial color={preset.accent} roughness={0.5} />
-          </mesh>
-
-          {/* Back pack / shoulder guard */}
-          <mesh position={[0, 0.18, -0.22]} castShadow>
-            <boxGeometry args={[0.38, 0.45, 0.18]} />
-            <meshStandardMaterial color={preset.accent} roughness={0.5} />
-          </mesh>
-
-          {/* Cape */}
-          {preset.accessory === 'cape' && (
-            <group ref={capeRef} position={[0, 0.55, -0.24]}>
-              <mesh position={[0, -0.5, 0]} castShadow>
-                <boxGeometry args={[0.66, 1.02, 0.06]} />
-                <meshStandardMaterial color={preset.accessoryColor} roughness={0.7} />
-              </mesh>
-            </group>
-          )}
-
-          {/* Arms */}
-          <group position={[-0.38, 0.35, 0]}>
-            <mesh ref={leftArmRef} position={[0, -0.25, 0]} castShadow>
-              <boxGeometry args={[0.16, 0.5, 0.18]} />
-              <meshStandardMaterial color={preset.top} />
-              <mesh position={[0, -0.3, 0]}>
-                <boxGeometry args={[0.17, 0.14, 0.19]} />
-                <meshStandardMaterial color={preset.skin} roughness={0.6} />
-              </mesh>
-            </mesh>
-          </group>
-
-          <group position={[0.38, 0.35, 0]}>
-            <mesh ref={rightArmRef} position={[0, -0.25, 0]} castShadow>
-              <boxGeometry args={[0.16, 0.5, 0.18]} />
-              <meshStandardMaterial color={preset.top} />
-              <mesh position={[0, -0.3, 0]}>
-                <boxGeometry args={[0.17, 0.14, 0.19]} />
-                <meshStandardMaterial color={preset.skin} roughness={0.6} />
-              </mesh>
-              {/* Sword held in the right hand */}
-              <group position={[0, -0.3, 0.08]} rotation={[0.25, 0, 0]}>
-                <mesh position={[0, -0.02, 0]}>
-                  <boxGeometry args={[0.07, 0.18, 0.07]} />
-                  <meshStandardMaterial color="#78350f" />
-                </mesh>
-                <mesh position={[0, 0.1, 0]}>
-                  <boxGeometry args={[0.28, 0.05, 0.09]} />
-                  <meshStandardMaterial color="#a16207" metalness={0.6} roughness={0.3} />
-                </mesh>
-                <mesh position={[0, 0.58, 0]} castShadow>
-                  <boxGeometry args={[0.08, 0.92, 0.02]} />
-                  <meshStandardMaterial color="#e2e8f0" metalness={0.75} roughness={0.2} emissive={preset.glow} emissiveIntensity={0.25} />
-                </mesh>
-              </group>
-            </mesh>
-          </group>
-        </group>
-
-        {/* Legs */}
-        <group position={[-0.16, 0.55, 0]}>
-          <mesh ref={leftLegRef} position={[0, -0.25, 0]} castShadow>
-            <boxGeometry args={[0.18, 0.55, 0.2]} />
-            <meshStandardMaterial color={preset.pants} />
-            <mesh position={[0, -0.21, 0.05]}>
-              <boxGeometry args={[0.2, 0.16, 0.27]} />
-              <meshStandardMaterial color={preset.boots} roughness={0.7} />
-            </mesh>
-          </mesh>
-        </group>
-
-        <group position={[0.16, 0.55, 0]}>
-          <mesh ref={rightLegRef} position={[0, -0.25, 0]} castShadow>
-            <boxGeometry args={[0.18, 0.55, 0.2]} />
-            <meshStandardMaterial color={preset.pants} />
-            <mesh position={[0, -0.21, 0.05]}>
-              <boxGeometry args={[0.2, 0.16, 0.27]} />
-              <meshStandardMaterial color={preset.boots} roughness={0.7} />
-            </mesh>
-          </mesh>
+      <group ref={tiltRef}>
+        <group scale={preset.build * modelScale(preset.model)}>
+          <primitive object={model} />
         </group>
       </group>
     </group>
