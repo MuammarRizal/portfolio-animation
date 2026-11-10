@@ -74,7 +74,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
           <div className="w-4 h-10 rounded-full" style={{ backgroundColor: zone.color }} />
           <div>
             <span className="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-              ZONE DISCOVERED
+              ZONA DITEMUKAN
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 mt-1">{zone.title}</h2>
             <p className="text-xs sm:text-sm text-slate-500">{zone.subtitle}</p>
@@ -93,16 +93,16 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
                   <h3 className="text-xl font-bold text-slate-900">Muammar Rizal</h3>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">LVL. 99 DEV</span>
                 </div>
-                <p className="text-blue-600 text-sm font-medium mt-0.5">Creative Technologist & Fullstack 3D Engineer</p>
+                <p className="text-blue-600 text-sm font-medium mt-0.5">Teknolog Kreatif & Engineer 3D Fullstack</p>
                 <p className="text-xs text-slate-500 mt-1 flex items-center justify-center sm:justify-start gap-1">
-                  <Globe className="w-3.5 h-3.5 text-blue-500" /> Jakarta, Indonesia 🇮🇩 • Available for Collaborations
+                  <Globe className="w-3.5 h-3.5 text-blue-500" /> Jakarta, Indonesia 🇮🇩 • Terbuka untuk Kolaborasi
                 </p>
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
               <div className="text-xs font-semibold text-blue-600 mb-1 flex items-center gap-1.5">
-                <Terminal className="w-3.5 h-3.5" /> Character Bio
+                <Terminal className="w-3.5 h-3.5" /> Bio Karakter
               </div>
               <p className="text-sm text-slate-700 italic">
                 &ldquo;Gw percaya masa depan web bukan lagi cuma dokumen teks 2D statis. Menggabungkan kemudahan web dengan pengalaman 3D interaktif menciptakan impresi yang tak terlupakan bagi siapa saja yang berkunjung.&rdquo;
@@ -112,18 +112,18 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
                 <Sparkles className="w-5 h-5 mx-auto mb-1 text-blue-500" />
-                <div className="font-extrabold text-slate-900 text-base">3+ Years</div>
-                <div className="text-xs text-slate-500">Engineering</div>
+                <div className="font-extrabold text-slate-900 text-base">3+ Tahun</div>
+                <div className="text-xs text-slate-500">Rekayasa</div>
               </div>
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
                 <Briefcase className="w-5 h-5 mx-auto mb-1 text-indigo-500" />
-                <div className="font-extrabold text-slate-900 text-base">20+ Projects</div>
-                <div className="text-xs text-slate-500">Shipped to Production</div>
+                <div className="font-extrabold text-slate-900 text-base">20+ Proyek</div>
+                <div className="text-xs text-slate-500">Rilis ke Produksi</div>
               </div>
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
                 <Award className="w-5 h-5 mx-auto mb-1 text-emerald-500" />
                 <div className="font-extrabold text-slate-900 text-base">High-FPS</div>
-                <div className="text-xs text-slate-500">WebGL Optimized</div>
+                <div className="text-xs text-slate-500">Optimasi WebGL</div>
               </div>
             </div>
           </div>
@@ -141,7 +141,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
                     activeProjectFilter === f ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  {f === 'all' ? 'All Works' : f === '3d' ? '3D & Creative' : 'Fullstack SaaS'}
+                  {f === 'all' ? 'Semua Karya' : f === '3d' ? '3D & Kreatif' : 'Fullstack SaaS'}
                 </button>
               ))}
             </div>
@@ -159,11 +159,11 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {proj.github && (
-                        <a href={proj.github} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 transition" title="View Repository">
+                        <a href={proj.github} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 transition" title="Lihat Repositori">
                           <Code2 className="w-4 h-4" />
                         </a>
                       )}
-                      <a href={proj.link} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition shadow-md" title="Live Demo">
+                      <a href={proj.link} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition shadow-md" title="Demo Langsung">
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     </div>
@@ -224,7 +224,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
               <form onSubmit={handleSendMessage} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Nama Anda / Perusahaan</label>
-                  <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="John Doe" className={inputClass} />
+                  <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Nama Anda" className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Email Kontak</label>
@@ -254,7 +254,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
 
         <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
           <span className="flex items-center gap-1.5">
-            <Gamepad2 className="w-4 h-4" /> Press ESC or click outside to resume exploring
+            <Gamepad2 className="w-4 h-4" /> Tekan ESC atau klik di luar untuk lanjut jelajah
           </span>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-900 transition underline cursor-pointer">
             Tutup

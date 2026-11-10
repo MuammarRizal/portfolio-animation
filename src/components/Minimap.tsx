@@ -145,7 +145,7 @@ export const Minimap: React.FC<MinimapProps> = ({
         <span className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" /> RADAR
         </span>
-        <span className="text-[9px] font-mono text-slate-400">REALM</span>
+        <span className="text-[9px] font-mono text-slate-400">DUNIA</span>
       </div>
 
       <div
@@ -193,7 +193,7 @@ export const Minimap: React.FC<MinimapProps> = ({
               onClick={() => onTeleport(zone)}
               className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer transition transform hover:scale-125"
               style={{ left: `${zx}px`, top: `${zy}px` }}
-              title={`Teleport to ${zone.title}`}
+              title={`Teleport ke ${zone.title}`}
             >
               <div
                 className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center shadow-md animate-pulse"

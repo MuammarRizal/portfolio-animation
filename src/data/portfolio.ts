@@ -20,32 +20,32 @@ export interface ZoneData {
 export const ZONES: ZoneData[] = [
   {
     id: 'about',
-    title: 'Sanctuary of Identity',
-    subtitle: 'Muammar Rizal • Bio & Mastery',
+    title: 'Kuil Identitas',
+    subtitle: 'Muammar Rizal • Bio & Keahlian',
     color: '#3b82f6', // blue
     position: [-36, 0, -32],
     radius: 6.5,
   },
   {
     id: 'projects',
-    title: 'Hall of Creation',
-    subtitle: 'Epic 3D & Fullstack Artifacts',
+    title: 'Aula Kreasi',
+    subtitle: 'Karya 3D & Fullstack Epik',
     color: '#a855f7', // purple
     position: [36, 0, -32],
     radius: 7.0,
   },
   {
     id: 'skills',
-    title: 'The Tech Nexus',
-    subtitle: 'Arsenal & Core Capabilities',
+    title: 'Nexus Teknologi',
+    subtitle: 'Arsenal & Kompetensi Inti',
     color: '#10b981', // emerald
     position: [-36, 0, 36],
     radius: 6.5,
   },
   {
     id: 'contact',
-    title: 'The Beacon Summit',
-    subtitle: 'Summon & Connect with Me',
+    title: 'Puncak Mercusuar',
+    subtitle: 'Panggil & Terhubung dengan Gw',
     color: '#f59e0b', // amber
     position: [36, 0, 36],
     radius: 6.5,
@@ -54,24 +54,24 @@ export const ZONES: ZoneData[] = [
 
 export const PROJECTS: Project[] = [
   {
-    title: 'Interactive 3D Portfolio RPG',
-    desc: 'An exploratory open-world adventure portfolio built with Three.js, React Three Fiber, and Tailwind. Features real-time lighting, interactive zones, responsive jump physics, and collectibles.',
+    title: 'Portfolio RPG 3D Interaktif',
+    desc: 'Portfolio petualangan dunia terbuka yang dibangun pakai Three.js, React Three Fiber, dan Tailwind. Dilengkapi pencahayaan real-time, zona interaktif, fisika lompatan yang responsif, dan koleksi kristal.',
     tags: ['React', 'Three.js', 'R3F', 'TypeScript', 'Tailwind'],
     link: '#',
     github: 'https://github.com',
     color: '#6366f1',
   },
   {
-    title: 'Fullstack SaaS Cloud Platform',
-    desc: 'Scalable cloud infrastructure dashboard with real-time telemetry, automated backups, and AI-powered performance analysis.',
+    title: 'Platform Cloud SaaS Fullstack',
+    desc: 'Dashboard infrastruktur cloud yang skalabel dengan telemetri real-time, backup otomatis, dan analisis performa bertenaga AI.',
     tags: ['Next.js', 'Go', 'Docker', 'PostgreSQL', 'Tailwind'],
     link: '#',
     github: 'https://github.com',
     color: '#3b82f6',
   },
   {
-    title: 'AI Automated Workflow Engine',
-    desc: 'Autonomous agent orchestrator connecting external toolchains, code generation engines, and background job queues.',
+    title: 'Mesin Alur Kerja Otomatis AI',
+    desc: 'Orkestrator agen otonom yang menghubungkan toolchain eksternal, mesin generasi kode, dan antrean job di background.',
     tags: ['TypeScript', 'FastAPI', 'Redis', 'Python'],
     link: '#',
     github: 'https://github.com',
@@ -109,19 +109,19 @@ export const GEMS: GemData[] = [
 
 export const SKILLS_CATEGORIES = [
   {
-    category: '3D & Creative Dev',
+    category: 'Dev 3D & Kreatif',
     skills: ['Three.js', 'React Three Fiber', 'GLSL / Shaders', 'Blender Low-Poly', 'Drei', 'Canvas API'],
   },
   {
-    category: 'Frontend Engineering',
+    category: 'Rekayasa Frontend',
     skills: ['React', 'Next.js', 'TypeScript', 'Tailwind CSS', 'Vite', 'State Management (Zustand)'],
   },
   {
-    category: 'Backend & Systems',
+    category: 'Backend & Sistem',
     skills: ['Node.js', 'Express / Nest', 'Python / FastAPI', 'PostgreSQL / Supabase', 'REST & GraphQL', 'Docker'],
   },
   {
-    category: 'Game & Interaction',
+    category: 'Game & Interaksi',
     skills: ['Collision Detection', 'Jump Physics', 'Raycasting', 'Camera Controllers', 'Smooth Lerping', 'Game Loops'],
   },
 ]

@@ -176,11 +176,11 @@ export const GameUI: React.FC<GameUIProps> = ({
             <h1 className="text-xs sm:text-base font-black tracking-wide text-slate-900 flex items-center gap-1.5">
               MUAMMAR RIZAL{' '}
               <span className="text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm">
-                RPG WORLD
+                DUNIA RPG
               </span>
             </h1>
             <p className="text-[10px] sm:text-[11px] text-slate-600 hidden md:block">
-              Open World Portfolio • Explore, Jump, and Inspect My Works
+              Portfolio Dunia Terbuka • Jelajah, Lompat, dan Intip Karya Gw
             </p>
           </div>
         </div>
@@ -204,15 +204,15 @@ export const GameUI: React.FC<GameUIProps> = ({
             <span>{hunts}</span>
           </div>
 
-          <button onClick={() => setIsAudioMuted(!isAudioMuted)} className={iconBtn} title={isAudioMuted ? 'Unmute SFX' : 'Mute SFX'}>
+          <button onClick={() => setIsAudioMuted(!isAudioMuted)} className={iconBtn} title={isAudioMuted ? 'Nyalakan SFX' : 'Matikan SFX'}>
             {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />}
           </button>
 
-          <button onClick={openSettingsPanel} className={iconBtn} title="Settings">
+          <button onClick={openSettingsPanel} className={iconBtn} title="Pengaturan">
             <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
-          <button onClick={openHelpPanel} className={iconBtn} title="Controls & Guide">
+          <button onClick={openHelpPanel} className={iconBtn} title="Kontrol & Panduan">
             <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
@@ -225,8 +225,8 @@ export const GameUI: React.FC<GameUIProps> = ({
             }`}
             title={
               isLandscape
-                ? 'Mode Landscape: ON — fullscreen + kunci landscape'
-                : 'Mode Landscape — fullscreen + kunci landscape'
+                ? 'Mode Lanskap: AKTIF — layar penuh + kunci lanskap'
+                : 'Mode Lanskap — layar penuh + kunci lanskap'
             }
           >
             <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -248,12 +248,12 @@ export const GameUI: React.FC<GameUIProps> = ({
       {showSettings && (
         <div className="pointer-events-auto absolute top-16 sm:top-20 right-3 md:right-6 w-[19rem] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-7rem)] overflow-y-auto p-5 rounded-2xl bg-white/95 backdrop-blur-md border border-white/70 shadow-2xl text-xs space-y-4 z-50 animate-in fade-in">
           <div className="flex justify-between items-center text-slate-900 font-bold text-sm border-b border-slate-200 pb-2">
-            <span>⚙️ Graphics & Settings</span>
+            <span>⚙️ Grafis & Pengaturan</span>
             <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-900 cursor-pointer">✕</button>
           </div>
 
           <div className="space-y-2.5">
-            <label className="text-slate-500 block">Camera & Display</label>
+            <label className="text-slate-500 block">Kamera & Tampilan</label>
 
             <button
               onClick={toggleLandscape}
@@ -261,7 +261,7 @@ export const GameUI: React.FC<GameUIProps> = ({
             >
               <span className="flex items-center gap-2 font-semibold text-slate-700">
                 <Smartphone className={`w-4 h-4 ${isLandscape ? 'text-blue-600' : 'text-slate-400'}`} />
-                Kunci Landscape
+                Kunci Lanskap
               </span>
               <Switch on={isLandscape} />
             </button>
@@ -276,7 +276,7 @@ export const GameUI: React.FC<GameUIProps> = ({
                 ) : (
                   <Maximize2 className="w-4 h-4 text-slate-400" />
                 )}
-                Layar Penuh (Fullscreen)
+                Layar Penuh
               </span>
               <Switch on={isFullscreen} />
             </button>
@@ -284,7 +284,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
           <div className="space-y-3 border-t border-slate-200 pt-3">
             <div>
-              <label className="text-slate-500 block mb-1">Visual Fidelity</label>
+              <label className="text-slate-500 block mb-1">Kualitas Visual</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => onQualityChange('high')}
@@ -300,14 +300,14 @@ export const GameUI: React.FC<GameUIProps> = ({
                     quality === 'low' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-100 text-slate-500 border-slate-200'
                   }`}
                 >
-                  Battery Saver
+                  Hemat Baterai
                 </button>
               </div>
             </div>
           </div>
 
           <div className="text-[11px] text-slate-500 border-t border-slate-200 pt-2">
-            Optimized for smooth real-time WebGL rendering across mobile & desktop.
+            Dioptimalkan untuk rendering WebGL real-time yang lancar di HP & desktop.
           </div>
         </div>
       )}
@@ -316,7 +316,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       {showHelp && (
         <div className="pointer-events-auto absolute top-16 sm:top-20 right-3 md:right-6 w-80 max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-7rem)] overflow-y-auto p-5 rounded-2xl bg-white/95 backdrop-blur-md border border-white/70 shadow-2xl text-xs space-y-3.5 z-50 animate-in fade-in">
           <div className="flex justify-between items-center text-slate-900 font-bold text-sm border-b border-slate-200 pb-2">
-            <span>🎮 Adventure Controls Guide</span>
+            <span>🎮 Panduan Kontrol Petualangan</span>
             <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-slate-900 cursor-pointer">✕</button>
           </div>
           <div className="space-y-2.5 text-slate-600">
@@ -325,32 +325,32 @@ export const GameUI: React.FC<GameUIProps> = ({
               <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-800 border border-slate-200">W A S D / Analog Kiri</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Lompat (Jump)</span>
-              <span className="font-mono bg-amber-50 px-2 py-0.5 rounded text-amber-700 border border-amber-200">Spacebar / JUMP</span>
+              <span>Lompat</span>
+              <span className="font-mono bg-amber-50 px-2 py-0.5 rounded text-amber-700 border border-amber-200">Spasi / LOMPAT</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Sprint (Lari Cepat)</span>
-              <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-800 border border-slate-200">Shift / SPRINT</span>
+              <span>Lari Cepat</span>
+              <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-800 border border-slate-200">Shift / LARI</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Putar Kamera (Orbit)</span>
+              <span>Putar Kamera</span>
               <span className="font-mono bg-cyan-50 px-2 py-0.5 rounded text-cyan-700 border border-cyan-200">Drag Mouse / Layar</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Interaksi / Buka Zona</span>
-              <span className="font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700 border border-blue-200">E / OPEN</span>
+              <span className="font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700 border border-blue-200">E / BUKA</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Serang (Attack)</span>
-              <span className="font-mono bg-rose-50 px-2 py-0.5 rounded text-rose-700 border border-rose-200">F / ATTACK</span>
+              <span>Serang</span>
+              <span className="font-mono bg-rose-50 px-2 py-0.5 rounded text-rose-700 border border-rose-200">F / SERANG</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Mode Landscape</span>
-              <span className="font-mono bg-indigo-50 px-2 py-0.5 rounded text-indigo-700 border border-indigo-200">📱 Fullscreen + Kunci Landscape</span>
+              <span>Mode Lanskap</span>
+              <span className="font-mono bg-indigo-50 px-2 py-0.5 rounded text-indigo-700 border border-indigo-200">📱 Layar Penuh + Kunci Lanskap</span>
             </div>
           </div>
           <p className="text-[11px] text-slate-500 border-t border-slate-200 pt-2 leading-relaxed">
-            ☀️ Siang cerah, rumput bergoyang, dan satwa liar berkeliaran. Kumpulkan ke-16 kristal energi untuk jadi <b>Island Master</b> — atau berburu hewan buat tambah skor! 🗡️
+            ☀️ Siang cerah, rumput bergoyang, dan satwa liar berkeliaran. Kumpulkan ke-16 kristal energi untuk jadi <b>Master Pulau</b> — atau berburu hewan buat tambah skor! 🗡️
           </p>
         </div>
       )}
@@ -368,7 +368,7 @@ export const GameUI: React.FC<GameUIProps> = ({
             style={{ borderColor: activeZone.color, boxShadow: `0 0 25px ${activeZone.color}60` }}
           >
             <span className="w-3 h-3 rounded-full animate-ping" style={{ backgroundColor: activeZone.color }} />
-            <span>Inspect {activeZone.title}</span>
+            <span>Buka {activeZone.title}</span>
             <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">[E]</span>
           </button>
         </div>
@@ -378,7 +378,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       <footer className="flex flex-col gap-3 pointer-events-auto">
         <div className={`hidden sm:flex self-start items-center gap-1.5 p-1.5 rounded-2xl ${panel} overflow-x-auto max-w-full hud-short-hide`}>
           <div className="px-2 text-slate-500 text-xs font-semibold flex items-center gap-1 shrink-0">
-            <Compass className="w-3.5 h-3.5 text-blue-600" /> Fast Travel:
+            <Compass className="w-3.5 h-3.5 text-blue-600" /> Perjalanan Cepat:
           </div>
           {ZONES.map((zone) => (
             <button
@@ -411,7 +411,7 @@ export const GameUI: React.FC<GameUIProps> = ({
                   style={{ backgroundColor: `${activeZone.color}dd`, borderColor: '#ffffff', color: '#ffffff', boxShadow: `0 0 16px ${activeZone.color}` }}
                 >
                   <Hand className="w-5 h-5" />
-                  <span className="text-[8px] tracking-tight">OPEN</span>
+                  <span className="text-[8px] tracking-tight">BUKA</span>
                 </button>
               )}
 
@@ -428,7 +428,7 @@ export const GameUI: React.FC<GameUIProps> = ({
                 }`}
               >
                 <Zap className={`w-5 h-5 ${isSprintActive ? 'text-yellow-300 fill-yellow-300 animate-pulse' : ''}`} />
-                <span className="text-[8px] tracking-tight">SPRINT</span>
+                <span className="text-[8px] tracking-tight">LARI</span>
               </button>
             </div>
 
@@ -442,7 +442,7 @@ export const GameUI: React.FC<GameUIProps> = ({
                 className="w-14 h-14 rounded-full bg-gradient-to-tr from-rose-500 to-red-600 active:from-rose-600 active:to-red-700 flex flex-col items-center justify-center text-white font-black shadow-xl border-2 border-white/70 active:scale-95 transition touch-none select-none"
               >
                 <Sword className="w-6 h-6 stroke-[2.5]" />
-                <span className="text-[8px] font-mono tracking-tighter -mt-0.5">ATTACK</span>
+                <span className="text-[8px] font-mono tracking-tighter -mt-0.5">SERANG</span>
               </button>
 
               <button
@@ -454,7 +454,7 @@ export const GameUI: React.FC<GameUIProps> = ({
                 className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 active:from-amber-500 active:to-orange-600 flex flex-col items-center justify-center text-white font-black shadow-xl border-2 border-white/70 active:scale-95 transition touch-none select-none"
               >
                 <ArrowUp className="w-7 h-7 stroke-[3]" />
-                <span className="text-[9px] font-mono tracking-tighter -mt-1">JUMP</span>
+                <span className="text-[9px] font-mono tracking-tighter -mt-1">LOMPAT</span>
               </button>
             </div>
           </div>
@@ -465,7 +465,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>
-              <b className="text-slate-700">WASD</b> Gerak • <b className="text-slate-700">SPACE</b> Lompat • <b className="text-slate-700">SHIFT</b> Sprint • <b className="text-slate-700">E</b> Buka Zona • <b className="text-slate-700">F</b> Serang • <b className="text-slate-700">Drag</b> Putar Kamera
+              <b className="text-slate-700">WASD</b> Gerak • <b className="text-slate-700">SPASI</b> Lompat • <b className="text-slate-700">SHIFT</b> Lari • <b className="text-slate-700">E</b> Buka Zona • <b className="text-slate-700">F</b> Serang • <b className="text-slate-700">Drag</b> Putar Kamera
             </span>
           </div>
           <span className="text-[11px] text-slate-400 font-mono">Muammar Rizal © 2026</span>

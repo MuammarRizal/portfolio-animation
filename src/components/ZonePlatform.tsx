@@ -201,7 +201,7 @@ export const ZonePlatform: React.FC<ZonePlatformProps> = ({ zone, isInside, onTr
           anchorX="center"
           anchorY="middle"
         >
-          {isInside ? '▼ Press [E] or Click to Open' : zone.subtitle}
+          {isInside ? '▼ Tekan [E] atau Klik untuk Buka' : zone.subtitle}
         </Text>
       </group>
     </group>

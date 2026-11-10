@@ -23,12 +23,12 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({
   const [collapsed, setCollapsed] = useState(false)
 
   const items = [
-    { title: 'Discover the Sanctuary of Identity', done: quests.visitedAbout },
-    { title: 'Enter the Hall of Creation', done: quests.visitedProjects },
-    { title: 'Activate the Tech Nexus', done: quests.visitedSkills },
-    { title: 'Reach the Beacon Summit', done: quests.visitedContact },
+    { title: 'Kunjungi Kuil Identitas', done: quests.visitedAbout },
+    { title: 'Masuki Aula Kreasi', done: quests.visitedProjects },
+    { title: 'Aktifkan Nexus Teknologi', done: quests.visitedSkills },
+    { title: 'Capai Puncak Mercusuar', done: quests.visitedContact },
     {
-      title: `Collect All Energy Gems (${gemsCollected}/${totalGems})`,
+      title: `Kumpulkan Semua Kristal Energi (${gemsCollected}/${totalGems})`,
       done: quests.allGemsCollected,
     },
   ]
@@ -45,7 +45,7 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({
         >
           <div className="flex items-center gap-1.5 font-bold tracking-wide">
             <Trophy className={`w-4 h-4 ${isMasterComplete ? 'text-amber-500' : 'text-blue-600'}`} />
-            <span>QUEST LOG</span>
+            <span>CATATAN MISI</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
               {completedCount}/{items.length}
             </span>
@@ -75,7 +75,7 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({
 
             {isMasterComplete && (
               <div className="mt-2 p-2 rounded-xl bg-amber-100 border border-amber-300 text-amber-700 text-[10px] text-center font-bold animate-pulse">
-                🏆 Island Master Explorer Unlocked!
+                🏆 Penjelajah Master Pulau Terbuka!
               </div>
             )}
           </div>
