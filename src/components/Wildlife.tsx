@@ -1,9 +1,8 @@
 import React, { useMemo, useRef, useLayoutEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { distanceToPath, getTerrainHeight, isWalkable } from '../game/world'
-
-type CreatureType = 'deer' | 'sheep' | 'rabbit'
+import { BOUNDARY_RADIUS, distanceToPath, getTerrainHeight, isWalkable, type PlayerState } from '../game/world'
+import { creatureRegistry, type CreatureEntry, type CreatureType } from '../game/creatures'
 
 const MIN_RADIUS = 12
 const MAX_RADIUS = 54
@@ -19,24 +18,123 @@ function randomWalkable(): [number, number] {
   return [20, 20]
 }
 
-/** Ground animal that wanders the realm, standing on the terrain surface. */
-const Wanderer: React.FC<{ type: CreatureType; start: [number, number] }> = ({ type, start }) => {
+/** Ground animal that wanders the realm, flees when approached, and can be hunted. */
+const Wanderer: React.FC<{
+  id: string
+  type: CreatureType
+  start: [number, number]
+  playerRef: React.MutableRefObject<PlayerState>
+  onHunt: () => void
+}> = ({ id, type, start, playerRef, onHunt }) => {
   const groupRef = useRef<THREE.Group>(null)
   const bodyRef = useRef<THREE.Group>(null)
   const legRefs = useRef<THREE.Mesh[]>([])
+  const poofRef = useRef<THREE.Mesh>(null)
 
   const target = useRef(new THREE.Vector3(start[0], 0, start[1]))
   const mode = useRef<'idle' | 'move'>('idle')
   const timer = useRef(Math.random() * 3)
   const walkPhase = useRef(0)
 
-  const speedRef = useRef(type === 'deer' ? 3.4 : type === 'sheep' ? 1.6 : 4.2)
+  const baseSpeed = useRef(type === 'deer' ? 3.4 : type === 'sheep' ? 1.6 : 4.2)
+
+  // Hunting / lifecycle state
+  const alive = useRef(true)
+  const hitFlag = useRef(false)
+  const respawnT = useRef(0)
+  const poofT = useRef(0)
+  const entryRef = useRef<CreatureEntry | null>(null)
+
+  // Register in the shared registry so combat + the radar see this exact creature.
+  useLayoutEffect(() => {
+    const entry: CreatureEntry = {
+      id,
+      type,
+      alive: true,
+      pos: new THREE.Vector3(start[0], 0, start[1]),
+      hit: () => {
+        hitFlag.current = true
+      },
+    }
+    entryRef.current = entry
+    creatureRegistry.set(id, entry)
+    return () => {
+      creatureRegistry.delete(id)
+    }
+  }, [id, type, start])
 
   useFrame((state, delta) => {
     const group = groupRef.current
     if (!group) return
     const dt = Math.min(delta, 0.1)
-    const speed = speedRef.current
+
+    // Publish live position + liveness to the radar/combat registry.
+    const entry = entryRef.current
+    if (entry) {
+      entry.pos.set(group.position.x, 0, group.position.z)
+      entry.alive = alive.current
+    }
+
+    // Poof puff — always animates, independent of the animal's state.
+    if (poofT.current > 0) {
+      poofT.current = Math.max(0, poofT.current - dt)
+      const k = 1 - poofT.current / 0.6
+      if (poofRef.current) {
+        poofRef.current.visible = true
+        poofRef.current.scale.setScalar(0.35 + k * 1.7)
+        const mat = poofRef.current.material as THREE.MeshBasicMaterial
+        if (mat) mat.opacity = (1 - k) * 0.9
+      }
+    } else if (poofRef.current && poofRef.current.visible) {
+      poofRef.current.visible = false
+    }
+
+    // Defeated: wait a moment, then respawn somewhere else on the island.
+    if (!alive.current) {
+      respawnT.current -= dt
+      if (respawnT.current <= 0) {
+        const [nx, nz] = randomWalkable()
+        group.position.set(nx, getTerrainHeight(nx, nz), nz)
+        group.scale.setScalar(1)
+        group.visible = true
+        alive.current = true
+        mode.current = 'idle'
+        timer.current = 1 + Math.random() * 3
+      }
+      return
+    }
+
+    // Sword connected — vanish in a puff of leaves and report the hunt.
+    if (hitFlag.current) {
+      hitFlag.current = false
+      alive.current = false
+      respawnT.current = 11
+      poofT.current = 0.6
+      group.visible = false
+      onHunt()
+      return
+    }
+
+    // Flee when the hero gets close.
+    const p = playerRef.current.position
+    const pdx = group.position.x - p.x
+    const pdz = group.position.z - p.z
+    const pd = Math.hypot(pdx, pdz)
+    const fleeing = pd < 9
+
+    let speed = baseSpeed.current
+    if (fleeing) {
+      const inv = pd > 0.001 ? 1 / pd : 0
+      const fx = group.position.x + pdx * inv * 16
+      const fz = group.position.z + pdz * inv * 16
+      const cd = Math.hypot(fx, fz)
+      const maxD = BOUNDARY_RADIUS - 6
+      const k = cd > maxD ? maxD / cd : 1
+      target.current.set(fx * k, 0, fz * k)
+      mode.current = 'move'
+      timer.current = 1.2
+      speed = baseSpeed.current * 1.9 + 2
+    }
 
     if (mode.current === 'idle') {
       timer.current -= dt
@@ -66,7 +164,7 @@ const Wanderer: React.FC<{ type: CreatureType; start: [number, number] }> = ({ t
       return
     }
 
-    timer.current -= dt
+    if (!fleeing) timer.current -= dt
 
     const dirX = dx / dist
     const dirZ = dz / dist
@@ -198,6 +296,11 @@ const Wanderer: React.FC<{ type: CreatureType; start: [number, number] }> = ({ t
           </>
         )}
       </group>
+
+      <mesh ref={poofRef} position={[0, 0.7, 0]} visible={false}>
+        <icosahedronGeometry args={[0.6, 1]} />
+        <meshBasicMaterial color="#f8fafc" transparent opacity={0} depthWrite={false} />
+      </mesh>
     </group>
   )
 }
@@ -354,7 +457,11 @@ const PlantBatch: React.FC<{ geometry: THREE.BufferGeometry; material: THREE.Mat
   return <instancedMesh ref={ref} args={[geometry, material, items.length]} castShadow={false} receiveShadow />
 }
 
-export const Wildlife: React.FC<{ quality?: 'high' | 'low' }> = ({ quality = 'high' }) => {
+export const Wildlife: React.FC<{
+  quality?: 'high' | 'low'
+  playerRef: React.MutableRefObject<PlayerState>
+  onHunt: () => void
+}> = ({ quality = 'high', playerRef, onHunt }) => {
   const low = quality === 'low'
 
   const creatures = useMemo(() => {
@@ -422,7 +529,7 @@ export const Wildlife: React.FC<{ quality?: 'high' | 'low' }> = ({ quality = 'hi
   return (
     <group>
       {creatures.map((c) => (
-        <Wanderer key={c.id} type={c.type} start={c.start} />
+        <Wanderer key={c.id} id={c.id} type={c.type} start={c.start} playerRef={playerRef} onHunt={onHunt} />
       ))}
 
       {birds.map((b) => (

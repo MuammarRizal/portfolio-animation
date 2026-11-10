@@ -63,12 +63,15 @@ interface SceneProps {
   activeZone: ZoneData | null
   modalZone: ZoneData | null
   quality: Quality
+  autoRotate: boolean
   virtualInputRef: React.MutableRefObject<{ x: number; y: number }>
   virtualJumpRef: React.MutableRefObject<boolean>
   virtualSprintRef: React.MutableRefObject<boolean>
+  attackRef: React.MutableRefObject<boolean>
   onZoneChange: (zone: ZoneData | null) => void
   onCollectGem: (id: number) => void
   onOpenZone: (zone: ZoneData) => void
+  onHunt: () => void
 }
 
 const Scene = memo(function Scene(props: SceneProps) {
@@ -81,12 +84,15 @@ const Scene = memo(function Scene(props: SceneProps) {
     activeZone,
     modalZone,
     quality,
+    autoRotate,
     virtualInputRef,
     virtualJumpRef,
     virtualSprintRef,
+    attackRef,
     onZoneChange,
     onCollectGem,
     onOpenZone,
+    onHunt,
   } = props
 
   return (
@@ -108,11 +114,11 @@ const Scene = memo(function Scene(props: SceneProps) {
         mieDirectionalG={0.85}
       />
 
-      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone)} cameraYawRef={cameraYawRef} />
+      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone)} cameraYawRef={cameraYawRef} autoRotate={autoRotate} />
 
       <Suspense fallback={null}>
         <WorldEnvironment collectedIds={collectedGems} grassCount={quality === 'low' ? 1600 : 4000} />
-        <Wildlife quality={quality} />
+        <Wildlife quality={quality} playerRef={playerRef} onHunt={onHunt} />
 
         {ZONES.map((zone) => (
           <ZonePlatform
@@ -130,6 +136,7 @@ const Scene = memo(function Scene(props: SceneProps) {
           virtualInputRef={virtualInputRef}
           virtualJumpRef={virtualJumpRef}
           virtualSprintRef={virtualSprintRef}
+          attackRef={attackRef}
           collectedRef={collectedRef}
           onZoneChange={onZoneChange}
           onCollectGem={onCollectGem}
@@ -156,6 +163,7 @@ export default function App() {
   const virtualInputRef = useRef({ x: 0, y: 0 })
   const virtualJumpRef = useRef(false)
   const virtualSprintRef = useRef(false)
+  const attackRef = useRef(false)
 
   // Coarse HUD snapshot (throttled) — only the 2D overlay consumes this
   const [hud, setHud] = useState({ pos: new THREE.Vector3(0, 0, 0), rot: 0 })
@@ -163,7 +171,9 @@ export default function App() {
   const [activeZone, setActiveZone] = useState<ZoneData | null>(null)
   const [modalZone, setModalZone] = useState<ZoneData | null>(null)
   const [collectedGems, setCollectedGems] = useState<number[]>([])
+  const [hunts, setHunts] = useState(0)
   const [quality, setQuality] = useState<Quality>('high')
+  const [autoRotate, setAutoRotate] = useState(false)
 
   const [quests, setQuests] = useState<QuestState>({
     visitedAbout: false,
@@ -202,6 +212,13 @@ export default function App() {
     setCollectedGems((prev) => (prev.includes(id) ? prev : [...prev, id]))
   }, [])
 
+  const onHunt = useCallback(() => setHunts((h) => h + 1), [])
+
+  // Attack is edge-triggered via a ref (consumed by the Character each swing)
+  const triggerAttack = useCallback(() => {
+    attackRef.current = true
+  }, [])
+
   // Completion celebration
   useEffect(() => {
     if (totalGems > 0 && collectedGems.length === totalGems) {
@@ -214,6 +231,7 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'KeyE' && activeZone && !modalZone) setModalZone(activeZone)
+      if (e.code === 'KeyF' && !modalZone) attackRef.current = true
       if (e.code === 'Escape' && modalZone) setModalZone(null)
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -248,6 +266,7 @@ export default function App() {
       <Canvas
         shadows={quality === 'high'}
         dpr={quality === 'low' ? [0.75, 1] : [1, 1.6]}
+        style={{ touchAction: 'none' }}
         camera={{ position: [0, 18, 24], fov: 48, near: 0.1, far: 400 }}
         gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
       >
@@ -260,12 +279,15 @@ export default function App() {
           activeZone={activeZone}
           modalZone={modalZone}
           quality={quality}
+          autoRotate={autoRotate}
           virtualInputRef={virtualInputRef}
           virtualJumpRef={virtualJumpRef}
           virtualSprintRef={virtualSprintRef}
+          attackRef={attackRef}
           onZoneChange={onZoneChange}
           onCollectGem={onCollectGem}
           onOpenZone={setModalZone}
+          onHunt={onHunt}
         />
       </Canvas>
 
@@ -275,14 +297,19 @@ export default function App() {
         playerRotation={hud.rot}
         gemCount={collectedGems.length}
         totalGems={totalGems}
+        collectedIds={collectedGems}
+        hunts={hunts}
         quests={quests}
         quality={quality}
         onQualityChange={setQuality}
+        autoRotate={autoRotate}
+        onAutoRotateChange={setAutoRotate}
         onOpenZone={(zone) => setModalZone(zone)}
         onTeleport={handleTeleport}
         onVirtualMove={handleVirtualMove}
         onVirtualJump={triggerMobileJump}
         onVirtualSprint={handleVirtualSprint}
+        onAttack={triggerAttack}
       />
 
       <PortfolioModal zone={modalZone} onClose={() => setModalZone(null)} />

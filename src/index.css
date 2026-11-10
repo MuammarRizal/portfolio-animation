@@ -19,3 +19,27 @@
     display: block;
   }
 }
+
+/*
+ * Landscape / short-viewport phones.
+ * Tailwind's sm/md breakpoints are width-based, so rotating a phone to
+ * landscape suddenly reveals the desktop panels (quest log, fast-travel bar,
+ * desktop hint) while the viewport height is tiny — that is what made the touch
+ * controls overlap. On short viewports we hide those panels and always keep the
+ * on-screen controls visible.
+ */
+@media (max-height: 560px) {
+  .hud-short-hide {
+    display: none !important;
+  }
+}
+
+@media (max-height: 560px) and (pointer: coarse) {
+  .hud-mobile-controls {
+    display: flex !important;
+  }
+  .hud-radar-mobile {
+    display: block !important;
+  }
+}
+
