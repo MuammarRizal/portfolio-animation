@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import * as THREE from 'three'
-import { ZONES, GEMS, type ZoneData } from '../data/portfolio'
+import { ZONES, GEMS, HOUSES, type ZoneData } from '../data/portfolio'
 import {
   ARCHWAYS,
   BOUNDARY_RADIUS,
@@ -99,6 +99,32 @@ const StaticLayer = React.memo(function StaticLayer({ size }: { size: number }) 
           fill="#f59e0b"
           opacity={0.85}
         />
+      ))}
+
+      {/* village houses (solid mini-zones) */}
+      {HOUSES.map((h, i) => (
+        <g key={`hs${i}`}>
+          <rect
+            x={px(h.x) - 2.2}
+            y={py(h.z) - 2.2}
+            width={4.4}
+            height={4.4}
+            rx={0.9}
+            fill={h.color}
+            stroke="#ffffff"
+            strokeWidth={0.7}
+            opacity={0.92}
+          />
+          <rect
+            x={px(h.x) - 1.1}
+            y={py(h.z) - 2.6}
+            width={2.2}
+            height={0.9}
+            rx={0.3}
+            fill="#ffffff"
+            opacity={0.85}
+          />
+        </g>
       ))}
 
       {/* island boundary */}

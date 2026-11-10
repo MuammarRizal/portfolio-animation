@@ -1,12 +1,15 @@
 import React, { useMemo, useRef, useLayoutEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { GEMS } from '../data/portfolio'
+import { GEMS, HOUSES, type HousePalette, type HouseRoof } from '../data/portfolio'
 import { GrassField } from './GrassField'
 import {
   ARCHWAYS,
   BOUNDARY_RADIUS,
   DECORATIONS,
+  HOUSE_D,
+  HOUSE_H,
+  HOUSE_W,
   TERRAIN_RADIUS,
   distanceToPath,
   getTerrainHeight,
@@ -28,6 +31,12 @@ interface Placement {
   z: number
   scale: number
   rot: number
+}
+
+/** House placement carries the batch keys used to split it into instanced parts. */
+interface HousePlacement extends Placement {
+  roof: HouseRoof
+  palette: HousePalette
 }
 
 // ---- shared geometries (baked local offsets so scale grows from the ground) ----
@@ -98,6 +107,58 @@ const G = {
     g.translate(0, 6.3, 0.65)
     return g
   })(),
+  // ---- village houses (base size HOUSE_W × HOUSE_D × HOUSE_H, origin at ground) ----
+  houseBody: (() => {
+    const g = new THREE.BoxGeometry(HOUSE_W, HOUSE_H, HOUSE_D)
+    g.translate(0, HOUSE_H / 2, 0)
+    return g
+  })(),
+  // Gable roof: two slanted slabs meeting at a ridge along Z.
+  houseGableL: (() => {
+    const g = new THREE.BoxGeometry(2.95, 0.26, HOUSE_D + 0.7)
+    g.rotateZ(0.7086)
+    g.translate(-1.05, HOUSE_H + 0.9, 0)
+    return g
+  })(),
+  houseGableR: (() => {
+    const g = new THREE.BoxGeometry(2.95, 0.26, HOUSE_D + 0.7)
+    g.rotateZ(-0.7086)
+    g.translate(1.05, HOUSE_H + 0.9, 0)
+    return g
+  })(),
+  // Hip roof: 4-sided pyramid, rotated so its faces align with the box walls.
+  houseHip: (() => {
+    const g = new THREE.ConeGeometry(3.5, 2.3, 4)
+    g.rotateY(Math.PI / 4)
+    g.translate(0, HOUSE_H + 1.15, 0)
+    return g
+  })(),
+  // Tower roof: taller octagonal spire.
+  houseTower: (() => {
+    const g = new THREE.ConeGeometry(3.1, 3.2, 8)
+    g.translate(0, HOUSE_H + 1.6, 0)
+    return g
+  })(),
+  houseDoor: (() => {
+    const g = new THREE.BoxGeometry(1.1, 1.95, 0.18)
+    g.translate(0, 0.98, HOUSE_D / 2 + 0.05)
+    return g
+  })(),
+  houseWindowL: (() => {
+    const g = new THREE.BoxGeometry(0.85, 0.85, 0.14)
+    g.translate(-1.35, 2.0, HOUSE_D / 2 + 0.04)
+    return g
+  })(),
+  houseWindowR: (() => {
+    const g = new THREE.BoxGeometry(0.85, 0.85, 0.14)
+    g.translate(1.35, 2.0, HOUSE_D / 2 + 0.04)
+    return g
+  })(),
+  houseChimney: (() => {
+    const g = new THREE.BoxGeometry(0.55, 1.6, 0.55)
+    g.translate(1.5, HOUSE_H + 1.1, -1.3)
+    return g
+  })(),
 }
 
 const M = {
@@ -118,6 +179,21 @@ const M = {
   archPillar: new THREE.MeshStandardMaterial({ color: '#aab4c0', roughness: 0.85, flatShading: true }),
   archLintel: new THREE.MeshStandardMaterial({ color: '#c3ccd7', roughness: 0.8, flatShading: true }),
   archBanner: new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0ea5e9', emissiveIntensity: 1 }),
+  // ---- village house palette ----
+  wallWood: new THREE.MeshStandardMaterial({ color: '#b07a4a', roughness: 0.85, flatShading: true }),
+  wallStone: new THREE.MeshStandardMaterial({ color: '#9aa3ad', roughness: 0.9, flatShading: true }),
+  wallPlaster: new THREE.MeshStandardMaterial({ color: '#e6d9c3', roughness: 0.9 }),
+  roofGable: new THREE.MeshStandardMaterial({ color: '#b4463a', roughness: 0.8, flatShading: true }),
+  roofHip: new THREE.MeshStandardMaterial({ color: '#8a5a3b', roughness: 0.82, flatShading: true }),
+  roofTower: new THREE.MeshStandardMaterial({ color: '#5d7f9e', roughness: 0.78, flatShading: true }),
+  houseDoor: new THREE.MeshStandardMaterial({ color: '#5a3b22', roughness: 0.8 }),
+  houseWindow: new THREE.MeshStandardMaterial({
+    color: '#ffd77a',
+    emissive: '#f59e0b',
+    emissiveIntensity: 1.1,
+    roughness: 0.4,
+  }),
+  houseChimney: new THREE.MeshStandardMaterial({ color: '#8d99a6', roughness: 0.9, flatShading: true }),
 }
 
 // ---- terrain palette ----
@@ -204,6 +280,38 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds
         rot: a.rot,
       })),
     []
+  )
+
+  // Village houses: one placement per house, then split into instanced batches
+  // by palette / roof so the whole village costs ~11 draw calls total.
+  const houseItems = useMemo<HousePlacement[]>(
+    () =>
+      HOUSES.map((h) => ({
+        x: h.x,
+        y: getTerrainHeight(h.x, h.z),
+        z: h.z,
+        scale: h.scale,
+        rot: h.rot,
+        roof: h.roof,
+        palette: h.palette,
+      })),
+    []
+  )
+  const houseByPalette = useMemo(
+    () => ({
+      wood: houseItems.filter((h) => h.palette === 'wood'),
+      stone: houseItems.filter((h) => h.palette === 'stone'),
+      plaster: houseItems.filter((h) => h.palette === 'plaster'),
+    }),
+    [houseItems]
+  )
+  const houseByRoof = useMemo(
+    () => ({
+      gable: houseItems.filter((h) => h.roof === 'gable'),
+      hip: houseItems.filter((h) => h.roof === 'hip'),
+      tower: houseItems.filter((h) => h.roof === 'tower'),
+    }),
+    [houseItems]
   )
 
   // Standing-stone ring marking the walkable boundary
@@ -326,6 +434,33 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds
       <InstancedBatch geometry={G.archPillarR} material={M.archPillar} items={archItems} />
       <InstancedBatch geometry={G.archLintel} material={M.archLintel} items={archItems} />
       <InstancedBatch geometry={G.archBanner} material={M.archBanner} items={archItems} castShadow={false} />
+
+      {/* 5b. VILLAGE HOUSES (solid — mini-zones, not enterable). Instanced parts. */}
+      {houseByPalette.wood.length > 0 && (
+        <InstancedBatch geometry={G.houseBody} material={M.wallWood} items={houseByPalette.wood} />
+      )}
+      {houseByPalette.stone.length > 0 && (
+        <InstancedBatch geometry={G.houseBody} material={M.wallStone} items={houseByPalette.stone} />
+      )}
+      {houseByPalette.plaster.length > 0 && (
+        <InstancedBatch geometry={G.houseBody} material={M.wallPlaster} items={houseByPalette.plaster} />
+      )}
+      {houseByRoof.gable.length > 0 && (
+        <>
+          <InstancedBatch geometry={G.houseGableL} material={M.roofGable} items={houseByRoof.gable} />
+          <InstancedBatch geometry={G.houseGableR} material={M.roofGable} items={houseByRoof.gable} />
+        </>
+      )}
+      {houseByRoof.hip.length > 0 && (
+        <InstancedBatch geometry={G.houseHip} material={M.roofHip} items={houseByRoof.hip} />
+      )}
+      {houseByRoof.tower.length > 0 && (
+        <InstancedBatch geometry={G.houseTower} material={M.roofTower} items={houseByRoof.tower} />
+      )}
+      <InstancedBatch geometry={G.houseDoor} material={M.houseDoor} items={houseItems} />
+      <InstancedBatch geometry={G.houseWindowL} material={M.houseWindow} items={houseItems} castShadow={false} />
+      <InstancedBatch geometry={G.houseWindowR} material={M.houseWindow} items={houseItems} castShadow={false} />
+      <InstancedBatch geometry={G.houseChimney} material={M.houseChimney} items={houseItems} />
 
       {/* 6. STEPPING-STONE ELEVATIONS */}
       <group position={[0, getTerrainHeight(0, -22), -22]}>

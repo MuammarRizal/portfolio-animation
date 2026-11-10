@@ -13,20 +13,31 @@ interface QuestTrackerProps {
   quests: QuestState
   gemsCollected: number
   totalGems: number
+  housesVisited: number
+  totalHouses: number
 }
 
 export const QuestTracker: React.FC<QuestTrackerProps> = ({
   quests,
   gemsCollected,
   totalGems,
+  housesVisited,
+  totalHouses,
 }) => {
   const [collapsed, setCollapsed] = useState(false)
+
+  const VILLAGE_GOAL = 5
+  const villageDone = housesVisited >= VILLAGE_GOAL
 
   const items = [
     { title: 'Kunjungi Kuil Identitas', done: quests.visitedAbout },
     { title: 'Masuki Aula Kreasi', done: quests.visitedProjects },
     { title: 'Aktifkan Nexus Teknologi', done: quests.visitedSkills },
     { title: 'Capai Puncak Mercusuar', done: quests.visitedContact },
+    {
+      title: `Mampir ke Rumah Warga (${housesVisited}/${totalHouses})`,
+      done: villageDone,
+    },
     {
       title: `Kumpulkan Semua Kristal Energi (${gemsCollected}/${totalGems})`,
       done: quests.allGemsCollected,

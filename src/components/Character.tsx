@@ -4,7 +4,7 @@ import { useAnimations, useGLTF } from '@react-three/drei'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import * as THREE from 'three'
 import type { KeyState } from '../hooks/useKeyboard'
-import { GEMS, ZONES, type ZoneData } from '../data/portfolio'
+import { GEMS, HOUSES, ZONES, type HouseData, type ZoneData } from '../data/portfolio'
 import { findNearestCreature } from '../game/creatures'
 import type { CharacterPreset } from '../game/characters'
 import { CLIP, MODELS, modelScale } from '../game/models'
@@ -12,6 +12,7 @@ import { sfx } from '../game/audio'
 import {
   clampToBoundary,
   getTerrainHeight,
+  HOUSE_INTERACT_RADIUS,
   resolveCollisions,
   type PlayerState,
 } from '../game/world'
@@ -28,6 +29,7 @@ interface CharacterProps {
   collectedRef: React.MutableRefObject<Set<number>>
   quality?: 'high' | 'low'
   onZoneChange: (zone: ZoneData | null) => void
+  onHouseChange: (house: HouseData | null) => void
   onCollectGem: (id: number) => void
 }
 
@@ -54,6 +56,7 @@ export const Character: React.FC<CharacterProps> = ({
   collectedRef,
   quality = 'high',
   onZoneChange,
+  onHouseChange,
   onCollectGem,
 }) => {
   const groupRef = useRef<THREE.Group>(null)
@@ -87,6 +90,7 @@ export const Character: React.FC<CharacterProps> = ({
   const targetRotation = useRef(0)
   const rollAngle = useRef(0)
   const lastZoneId = useRef<string | null>(null)
+  const lastHouseId = useRef<string | null>(null)
   const landTimer = useRef(0)
 
   // Animation state
@@ -322,6 +326,22 @@ export const Character: React.FC<CharacterProps> = ({
     if (nextId !== lastZoneId.current) {
       lastZoneId.current = nextId
       onZoneChange(activeZone)
+    }
+
+    // 8b. HOUSE PROXIMITY (nearest solid house → its mini-zone prompt)
+    let activeHouse: HouseData | null = null
+    let nearestHouse = HOUSE_INTERACT_RADIUS
+    for (const house of HOUSES) {
+      const d = Math.hypot(group.position.x - house.x, group.position.z - house.z)
+      if (d < nearestHouse) {
+        nearestHouse = d
+        activeHouse = house
+      }
+    }
+    const nextHouseId = activeHouse ? activeHouse.id : null
+    if (nextHouseId !== lastHouseId.current) {
+      lastHouseId.current = nextHouseId
+      onHouseChange(activeHouse)
     }
 
     // 9. GEM PICKUP

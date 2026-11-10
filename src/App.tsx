@@ -13,10 +13,11 @@ import { Wildlife } from './components/Wildlife'
 import { NpcVillagers } from './components/NpcVillagers'
 import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
+import { HousePanel } from './components/HousePanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Effects } from './components/Effects'
 import { Ocean } from './components/Ocean'
-import { ZONES, GEMS, type ZoneData } from './data/portfolio'
+import { ZONES, HOUSES, GEMS, type HouseData, type ZoneData } from './data/portfolio'
 import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
 import { MODELS, type ModelKey } from './game/models'
 import { sfx } from './game/audio'
@@ -87,12 +88,14 @@ interface SceneProps {
   collectedGems: number[]
   activeZone: ZoneData | null
   modalZone: ZoneData | null
+  modalHouse: HouseData | null
   quality: Quality
   virtualInputRef: React.MutableRefObject<{ x: number; y: number }>
   virtualJumpRef: React.MutableRefObject<boolean>
   virtualSprintRef: React.MutableRefObject<boolean>
   attackRef: React.MutableRefObject<boolean>
   onZoneChange: (zone: ZoneData | null) => void
+  onHouseChange: (house: HouseData | null) => void
   onCollectGem: (id: number) => void
   onOpenZone: (zone: ZoneData) => void
   onHunt: () => void
@@ -109,12 +112,14 @@ const Scene = memo(function Scene(props: SceneProps) {
     collectedGems,
     activeZone,
     modalZone,
+    modalHouse,
     quality,
     virtualInputRef,
     virtualJumpRef,
     virtualSprintRef,
     attackRef,
     onZoneChange,
+    onHouseChange,
     onCollectGem,
     onOpenZone,
     onHunt,
@@ -151,7 +156,7 @@ const Scene = memo(function Scene(props: SceneProps) {
 
       <Ocean quality={quality} />
 
-      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone)} cameraYawRef={cameraYawRef} />
+      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone || modalHouse)} cameraYawRef={cameraYawRef} />
 
       <Suspense fallback={null}>
         <WorldEnvironment collectedIds={collectedGems} grassCount={quality === 'low' ? 1600 : 4000} />
@@ -181,6 +186,7 @@ const Scene = memo(function Scene(props: SceneProps) {
           collectedRef={collectedRef}
           quality={quality}
           onZoneChange={onZoneChange}
+          onHouseChange={onHouseChange}
           onCollectGem={onCollectGem}
         />
 
@@ -214,6 +220,9 @@ export default function App() {
 
   const [activeZone, setActiveZone] = useState<ZoneData | null>(null)
   const [modalZone, setModalZone] = useState<ZoneData | null>(null)
+  const [activeHouse, setActiveHouse] = useState<HouseData | null>(null)
+  const [modalHouse, setModalHouse] = useState<HouseData | null>(null)
+  const [visitedHouses, setVisitedHouses] = useState<string[]>([])
   const [collectedGems, setCollectedGems] = useState<number[]>([])
   const [hunts, setHunts] = useState(0)
   const [quality, setQuality] = useState<Quality>('high')
@@ -290,8 +299,19 @@ export default function App() {
     collectedRef.current.add(id)
     setCollectedGems((prev) => (prev.includes(id) ? prev : [...prev, id]))
   }, [])
-
   const onHunt = useCallback(() => setHunts((h) => h + 1), [])
+
+  // Nearest-house tracking (fires only when the active house changes).
+  const onHouseChange = useCallback((house: HouseData | null) => {
+    setActiveHouse((prev) => (prev?.id === house?.id ? prev : house))
+  }, [])
+
+  // Knock at a house: open its mini-zone panel and record the visit.
+  const openHouse = useCallback((house: HouseData) => {
+    setModalHouse(house)
+    setVisitedHouses((prev) => (prev.includes(house.id) ? prev : [...prev, house.id]))
+    sfx.uiOpen()
+  }, [])
 
   const onSceneReady = useCallback(() => setSceneReady(true), [])
 
@@ -313,12 +333,14 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'KeyE' && activeZone && !modalZone) setModalZone(activeZone)
-      if (e.code === 'KeyF' && !modalZone) attackRef.current = true
+      else if (e.code === 'KeyE' && !activeZone && activeHouse && !modalHouse) openHouse(activeHouse)
+      if (e.code === 'KeyF' && !modalZone && !modalHouse) attackRef.current = true
       if (e.code === 'Escape' && modalZone) setModalZone(null)
+      if (e.code === 'Escape' && modalHouse) setModalHouse(null)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeZone, modalZone])
+  }, [activeZone, modalZone, activeHouse, modalHouse, openHouse])
 
   const handleTeleport = useCallback((zone: ZoneData) => {
     const x = zone.position[0]
@@ -366,12 +388,14 @@ export default function App() {
           collectedGems={collectedGems}
           activeZone={activeZone}
           modalZone={modalZone}
+          modalHouse={modalHouse}
           quality={quality}
           virtualInputRef={virtualInputRef}
           virtualJumpRef={virtualJumpRef}
           virtualSprintRef={virtualSprintRef}
           attackRef={attackRef}
           onZoneChange={onZoneChange}
+          onHouseChange={onHouseChange}
           onCollectGem={onCollectGem}
           onOpenZone={setModalZone}
           onHunt={onHunt}
@@ -383,6 +407,7 @@ export default function App() {
 
       <GameUI
         activeZone={activeZone}
+        activeHouse={activeHouse}
         playerPos={hud.pos}
         playerRotation={hud.rot}
         gemCount={collectedGems.length}
@@ -390,11 +415,14 @@ export default function App() {
         collectedIds={collectedGems}
         hunts={hunts}
         quests={quests}
+        housesVisited={visitedHouses.length}
+        totalHouses={HOUSES.length}
         quality={quality}
         onQualityChange={handleQualityChange}
         character={character}
         onCharacterChange={handleCharacterChange}
         onOpenZone={(zone) => setModalZone(zone)}
+        onOpenHouse={openHouse}
         onTeleport={handleTeleport}
         onVirtualMove={handleVirtualMove}
         onVirtualJump={triggerMobileJump}
@@ -403,6 +431,8 @@ export default function App() {
       />
 
       <PortfolioModal zone={modalZone} onClose={() => setModalZone(null)} />
+
+      <HousePanel house={modalHouse} onClose={() => setModalHouse(null)} />
 
       {showLoader && <LoadingScreen sceneReady={sceneReady} onDone={() => setShowLoader(false)} />}
     </main>

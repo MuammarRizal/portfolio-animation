@@ -16,9 +16,10 @@ import {
   Sword,
   Server,
   UserRound,
+  Home,
 } from 'lucide-react'
 import * as THREE from 'three'
-import { ZONES, type ZoneData } from '../data/portfolio'
+import { ZONES, type HouseData, type ZoneData } from '../data/portfolio'
 import type { CharacterPreset } from '../game/characters'
 import { isMuted, setMuted, subscribeMuted, sfx } from '../game/audio'
 import { Minimap } from './Minimap'
@@ -35,6 +36,7 @@ const Switch: React.FC<{ on: boolean }> = ({ on }) => (
 
 interface GameUIProps {
   activeZone: ZoneData | null
+  activeHouse: HouseData | null
   playerPos: THREE.Vector3
   playerRotation: number
   gemCount: number
@@ -42,11 +44,14 @@ interface GameUIProps {
   collectedIds: number[]
   hunts: number
   quests: QuestState
+  housesVisited: number
+  totalHouses: number
   quality: 'high' | 'low'
   onQualityChange: (quality: 'high' | 'low') => void
   character: CharacterPreset
   onCharacterChange: (id: string) => void
   onOpenZone: (zone: ZoneData) => void
+  onOpenHouse: (house: HouseData) => void
   onTeleport: (zone: ZoneData) => void
   onVirtualMove: (dir: { x: number; y: number }) => void
   onVirtualJump: () => void
@@ -56,6 +61,7 @@ interface GameUIProps {
 
 export const GameUI: React.FC<GameUIProps> = ({
   activeZone,
+  activeHouse,
   playerPos,
   playerRotation,
   gemCount,
@@ -63,11 +69,14 @@ export const GameUI: React.FC<GameUIProps> = ({
   collectedIds,
   hunts,
   quests,
+  housesVisited,
+  totalHouses,
   quality,
   onQualityChange,
   character,
   onCharacterChange,
   onOpenZone,
+  onOpenHouse,
   onTeleport,
   onVirtualMove,
   onVirtualJump,
@@ -288,7 +297,13 @@ export const GameUI: React.FC<GameUIProps> = ({
       {/* 2. MIDDLE: QUEST LOG (LEFT) & MINIMAP (RIGHT) */}
       <div className="flex justify-between items-start pointer-events-none mt-2">
         <div className="pointer-events-auto hud-short-hide">
-          <QuestTracker quests={quests} gemsCollected={gemCount} totalGems={totalGems} />
+          <QuestTracker
+            quests={quests}
+            gemsCollected={gemCount}
+            totalGems={totalGems}
+            housesVisited={housesVisited}
+            totalHouses={totalHouses}
+          />
         </div>
         <div className="pointer-events-auto hidden md:block hud-short-hide">
           <Minimap playerPos={playerPos} playerRotation={playerRotation} onTeleport={onTeleport} collectedIds={collectedIds} />
@@ -414,12 +429,13 @@ export const GameUI: React.FC<GameUIProps> = ({
           </div>
           <p className="text-[11px] text-slate-500 border-t border-slate-200 pt-2 leading-relaxed">
             ☀️ Siang cerah, rumput bergoyang, dan satwa liar berkeliaran. Kumpulkan ke-16 kristal energi untuk jadi <b>Master Pulau</b> — atau berburu hewan buat tambah skor! 🗡️
+            Singgah ke 9 rumah warga yang tersebar di 3 dusun buat intip konten portfolio & cerita kecil. 🏘️
           </p>
         </div>
       )}
 
       {/* 3. CENTER INTERACTION PROMPT */}
-      {activeZone && (
+      {activeZone ? (
         <div className="self-center pointer-events-auto animate-bounce mb-2">
           <button
             onPointerDown={(e) => {
@@ -435,7 +451,23 @@ export const GameUI: React.FC<GameUIProps> = ({
             <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">[E]</span>
           </button>
         </div>
-      )}
+      ) : activeHouse ? (
+        <div className="self-center pointer-events-auto animate-bounce mb-2">
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onOpenHouse(activeHouse)
+            }}
+            className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/90 hover:bg-white border-2 text-slate-900 font-bold shadow-xl backdrop-blur-md transition transform hover:scale-105 cursor-pointer touch-none"
+            style={{ borderColor: activeHouse.color, boxShadow: `0 0 25px ${activeHouse.color}60` }}
+          >
+            <Home className="w-4 h-4" style={{ color: activeHouse.color }} />
+            <span>Kunjungi {activeHouse.name}</span>
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">[E]</span>
+          </button>
+        </div>
+      ) : null}
 
       {/* 4. BOTTOM BAR */}
       <footer className="flex flex-col gap-3 pointer-events-auto">
@@ -463,7 +495,7 @@ export const GameUI: React.FC<GameUIProps> = ({
 
           <div className="flex flex-col items-end gap-2.5 touch-none">
             <div className="flex items-center gap-2">
-              {activeZone && (
+              {activeZone ? (
                 <button
                   onPointerDown={(e) => {
                     e.preventDefault()
@@ -476,7 +508,20 @@ export const GameUI: React.FC<GameUIProps> = ({
                   <Hand className="w-5 h-5" />
                   <span className="text-[8px] tracking-tight">BUKA</span>
                 </button>
-              )}
+              ) : activeHouse ? (
+                <button
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onOpenHouse(activeHouse)
+                  }}
+                  className="w-13 h-13 rounded-full flex flex-col items-center justify-center font-black shadow-lg border-2 transition active:scale-95 animate-bounce touch-none"
+                  style={{ backgroundColor: `${activeHouse.color}dd`, borderColor: '#ffffff', color: '#ffffff', boxShadow: `0 0 16px ${activeHouse.color}` }}
+                >
+                  <Home className="w-5 h-5" />
+                  <span className="text-[8px] tracking-tight">MASUK</span>
+                </button>
+              ) : null}
 
               <button
                 onPointerDown={(e) => {

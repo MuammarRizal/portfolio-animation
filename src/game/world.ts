@@ -1,7 +1,7 @@
 // Single source of truth for the game world: terrain height, static colliders,
 // deterministic decorations, paths, mountains and the circular boundary.
 import type { Vector3 } from 'three'
-import { ZONES } from '../data/portfolio'
+import { HOUSES, ZONES } from '../data/portfolio'
 
 /** Mutable per-frame player state shared through refs (no React state churn). */
 export interface PlayerState {
@@ -45,10 +45,19 @@ export interface Archway {
 export const TERRAIN_RADIUS = 66
 export const BOUNDARY_RADIUS = 60
 
+// Village house footprint (single shared base size — houses vary via uniform scale).
+export const HOUSE_W = 4.2
+export const HOUSE_D = 4.8
+export const HOUSE_H = 3.2
+/** How close the player must be to a house for its mini-zone prompt to appear. */
+export const HOUSE_INTERACT_RADIUS = 5.8
+
 // The 4 realm outposts (sourced from ZONES so render + collision stay in sync)
 const OUTPOSTS = ZONES.map((z) => ({ x: z.position[0], z: z.position[2], r: 12 }))
+// Each house gets its own flattened pad so it never sinks into a hill.
+const HOUSE_SPOTS = HOUSES.map((h) => ({ x: h.x, z: h.z, r: 6 }))
 
-const FLAT_SPOTS = [{ x: 0, z: 0, r: 10 }, ...OUTPOSTS]
+const FLAT_SPOTS = [{ x: 0, z: 0, r: 10 }, ...OUTPOSTS, ...HOUSE_SPOTS]
 
 // Rolling hills (walkable, you climb over them)
 export const HILLS: Hill[] = [
@@ -139,11 +148,23 @@ export function distanceToPath(x: number, z: number): number {
   return best
 }
 
-/** Can a wandering creature stand here? (inside boundary, not on a mountain) */
+/** Can a wandering creature stand here? (inside boundary, not on a mountain, not in a house) */
 export function isWalkable(x: number, z: number): boolean {
   if (Math.hypot(x, z) > BOUNDARY_RADIUS - 5) return false
   for (const m of MOUNTAINS) {
     if (Math.hypot(x - m.x, z - m.z) < m.radius * 0.8) return false
+  }
+  // Keep villagers/wildlife out of the solid village houses (local-space AABB).
+  for (const h of HOUSES) {
+    const hw = (HOUSE_W * h.scale) / 2 + 1
+    const hd = (HOUSE_D * h.scale) / 2 + 1
+    const dx = x - h.x
+    const dz = z - h.z
+    const cos = Math.cos(h.rot)
+    const sin = Math.sin(h.rot)
+    const lx = cos * dx - sin * dz
+    const lz = sin * dx + cos * dz
+    if (Math.abs(lx) < hw && Math.abs(lz) < hd) return false
   }
   return true
 }
@@ -167,6 +188,7 @@ function buildDecorations(): Decoration[] {
     { x: 0, z: 0, r: 7 },
     ...OUTPOSTS.map((o) => ({ x: o.x, z: o.z, r: 9 })),
     ...MOUNTAINS.map((m) => ({ x: m.x, z: m.z, r: m.radius * 0.65 })),
+    ...HOUSES.map((h) => ({ x: h.x, z: h.z, r: 5.5 })),
   ]
 
   let guard = 0
@@ -231,6 +253,31 @@ function buildColliders(): Collider[] {
     cols.push({ x: zx, z: zz, r: 1.2 }) // center pedestal
     for (const lx of [-r * 0.5, r * 0.5]) {
       cols.push({ x: zx + lx, z: zz - r * 0.55, r: 0.9 }) // guardian pillars
+    }
+  }
+
+  // Village houses: solid boxes approximated by an overlapping grid of circles
+  // so the player can bump against them but never slip inside.
+  for (const h of HOUSES) {
+    const w = HOUSE_W * h.scale
+    const d = HOUSE_D * h.scale
+    const nCols = Math.max(2, Math.round(w / 1.5))
+    const nRows = Math.max(2, Math.round(d / 1.5))
+    const stepX = w / (nCols - 1)
+    const stepZ = d / (nRows - 1)
+    const cr = 0.62 * Math.max(stepX, stepZ)
+    const cos = Math.cos(h.rot)
+    const sin = Math.sin(h.rot)
+    for (let i = 0; i < nCols; i++) {
+      const lx = -w / 2 + i * stepX
+      for (let j = 0; j < nRows; j++) {
+        const lz = -d / 2 + j * stepZ
+        cols.push({
+          x: h.x + cos * lx + sin * lz,
+          z: h.z - sin * lx + cos * lz,
+          r: cr,
+        })
+      }
     }
   }
 

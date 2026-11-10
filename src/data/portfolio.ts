@@ -125,3 +125,280 @@ export const SKILLS_CATEGORIES = [
     skills: ['Collision Detection', 'Jump Physics', 'Raycasting', 'Camera Controllers', 'Smooth Lerping', 'Game Loops'],
   },
 ]
+
+/** One block of content inside a house's mini-zone panel. */
+export interface HouseSection {
+  icon: string
+  heading: string
+  body: string
+  bullets?: string[]
+}
+
+export type HouseRoof = 'gable' | 'hip' | 'tower'
+export type HousePalette = 'wood' | 'stone' | 'plaster'
+
+/**
+ * A solid village house you cannot enter — walking up to it opens a mini-zone
+ * panel instead. Geometry (footprint + height) lives in `game/world.ts`; only
+ * placement + content live here, mirroring how ZONES is split from the terrain.
+ */
+export interface HouseData {
+  id: string
+  name: string
+  subtitle: string
+  color: string
+  x: number
+  z: number
+  rot: number
+  /** Uniform mesh scale — also scales the generated colliders. */
+  scale: number
+  roof: HouseRoof
+  palette: HousePalette
+  kind: 'portfolio' | 'flavor'
+  sections: HouseSection[]
+}
+
+// The village: 9 houses split across 3 hamlets (north, south, east of the spawn
+// plaza). Residential flavour mixed with portfolio doors — knock at each one.
+export const HOUSES: HouseData[] = [
+  // ---- Dusun Utara (0, -38) ----
+  {
+    id: 'bio',
+    name: 'Rumah Bio',
+    subtitle: 'Kenalan dulu sama yang bikin pulau ini',
+    color: '#3b82f6',
+    x: -6.5,
+    z: -39,
+    rot: 0.6,
+    scale: 1.0,
+    roof: 'gable',
+    palette: 'wood',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '🧑‍💻',
+        heading: 'Siapa Gw?',
+        body: 'Muammar Rizal — teknolog kreatif & engineer 3D fullstack dari Jakarta, Indonesia.',
+      },
+      {
+        icon: '🎓',
+        heading: 'Fokus Gw',
+        body: 'Bangun pengalaman web interaktif yang terasa seperti game: WebGL, React, dan arsitektur frontend yang rapi.',
+        bullets: ['3+ tahun rekayasa perangkat lunak', '20+ proyek rilis ke produksi', 'Suka low-poly, shader, dan optimasi FPS'],
+      },
+    ],
+  },
+  {
+    id: 'workshop',
+    name: 'Bengkel Proyek',
+    subtitle: 'Tempat karya-karya gw dirakit',
+    color: '#a855f7',
+    x: 0,
+    z: -35.5,
+    rot: 0,
+    scale: 1.08,
+    roof: 'gable',
+    palette: 'stone',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '🧰',
+        heading: 'Bengkel Karya',
+        body: 'Beberapa proyek yang paling gw banggain:',
+        bullets: PROJECTS.map((p) => p.title),
+      },
+      {
+        icon: '⚙️',
+        heading: 'Cara Kerja',
+        body: 'Tiap proyek mulai dari prototipe kecil, lalu dioptimasi terus sampai enak dipakai di HP.',
+      },
+    ],
+  },
+  {
+    id: 'library',
+    name: 'Perpustakaan Skill',
+    subtitle: 'Rak-rak ilmu yang gw kuasai',
+    color: '#10b981',
+    x: 6.5,
+    z: -39,
+    rot: -0.6,
+    scale: 0.94,
+    roof: 'hip',
+    palette: 'plaster',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '📚',
+        heading: 'Rak Skill',
+        body: 'Kategori utama kemampuan gw:',
+        bullets: SKILLS_CATEGORIES.map((c) => c.category),
+      },
+      {
+        icon: '🚀',
+        heading: 'Terus Belajar',
+        body: 'Sekarang lagi fokus ke WebGPU, TSL, dan animasi karakter real-time.',
+      },
+    ],
+  },
+
+  // ---- Dusun Selatan (0, 38) ----
+  {
+    id: 'post',
+    name: 'Kantor Pos',
+    subtitle: 'Kirim pesan, gw balas',
+    color: '#f59e0b',
+    x: -6.5,
+    z: 39,
+    rot: -0.6,
+    scale: 1.0,
+    roof: 'gable',
+    palette: 'plaster',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '✉️',
+        heading: 'Kirim Pesan',
+        body: 'Punya ide kolaborasi atau butuh engineer 3D fullstack? Gw terbuka banget.',
+      },
+      {
+        icon: '📮',
+        heading: 'Kontak',
+        body: 'Kurir pos kami siap antar pesan lu:',
+        bullets: [
+          'GitHub: github.com/MuammarRizal',
+          'Repo pulau ini: portfolio-animation',
+          'Kontak lengkap ada di Puncak Mercusuar',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'cafe',
+    name: 'Warung Kopi',
+    subtitle: 'Nongkrong sambil ngobrol soal kode',
+    color: '#b45309',
+    x: 0,
+    z: 35.5,
+    rot: Math.PI,
+    scale: 1.05,
+    roof: 'hip',
+    palette: 'wood',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '☕',
+        heading: 'Kopi Dulu',
+        body: 'Kata warga, kopi di sini bisa naikin FPS 20%. (Nggak terbukti, tapi nikmat.)',
+      },
+      {
+        icon: '💡',
+        heading: 'Fakta Dunia',
+        body: 'Pulau ini dirender real-time di browser pakai Three.js — nggak ada video, semua dihitung ulang tiap frame.',
+      },
+    ],
+  },
+  {
+    id: 'attic',
+    name: 'Gudang Nostalgia',
+    subtitle: 'Kotak-kotak kenangan masa belajar',
+    color: '#7c3aed',
+    x: 6.5,
+    z: 39,
+    rot: 0.6,
+    scale: 0.96,
+    roof: 'gable',
+    palette: 'wood',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '📦',
+        heading: 'Isi Gudang',
+        body: 'Kotak-kotak kenangan dari masa awal belajar ngoding.',
+      },
+      {
+        icon: '🕹️',
+        heading: 'Stack Pertama',
+        body: 'Perjalanan toolchain gw dari dulu:',
+        bullets: ['HTML/CSS → JavaScript', 'React → Next.js', 'Three.js → shader & game loop'],
+      },
+    ],
+  },
+
+  // ---- Dusun Timur (44, 6) ----
+  {
+    id: 'shaderhut',
+    name: 'Saung Shader',
+    subtitle: 'Rumus-rumus ajaib yang nggambar ke layar',
+    color: '#06b6d4',
+    x: 40.5,
+    z: 1.5,
+    rot: 1.2,
+    scale: 0.9,
+    roof: 'tower',
+    palette: 'plaster',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🌊',
+        heading: 'Rumus Ritual',
+        body: 'Shader itu cuma rumus matematika yang menggambar ke layar. Seremnya cuma di nama.',
+      },
+      {
+        icon: '✨',
+        heading: 'Tips WebGL',
+        body: 'Kalau frame drop, cek tiga hal ini dulu:',
+        bullets: ['Kurangi draw call — pakai instancing', 'Batasi pixel ratio (dpr)', 'Matikan bayangan kalau nggak perlu'],
+      },
+    ],
+  },
+  {
+    id: 'villager',
+    name: 'Rumah Warga',
+    subtitle: 'Penduduk pulau yang ramah',
+    color: '#059669',
+    x: 46,
+    z: 6,
+    rot: Math.PI / 2,
+    scale: 1.1,
+    roof: 'hip',
+    palette: 'wood',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🧑‍🌾',
+        heading: 'Penduduk',
+        body: 'Warga di pulau ini NPC prosedural — mereka jalan berkeliling tanpa naskah.',
+      },
+      {
+        icon: '👋',
+        heading: 'Sapa Mereka',
+        body: 'Coba datangi salah satu warga; kadang mereka ngasih komentar random.',
+      },
+    ],
+  },
+  {
+    id: 'watchtower',
+    name: 'Pos Ronda',
+    subtitle: 'Menara pantau seluruh pulau',
+    color: '#ef4444',
+    x: 40.5,
+    z: 10.5,
+    rot: 2.2,
+    scale: 0.92,
+    roof: 'tower',
+    palette: 'stone',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🔭',
+        heading: 'Pos Pengawas',
+        body: 'Dari sini kelihatan seluruh pulau — kuil, aula, dan mercusuar.',
+      },
+      {
+        icon: '🎁',
+        heading: 'Easter Egg',
+        body: 'Kalau lu udah kumpulin ke-16 kristal energi, konfeti bakal meledak. Selamat, Master Pulau!',
+      },
+    ],
+  },
+]
