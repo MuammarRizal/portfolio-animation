@@ -14,11 +14,14 @@ import { NpcVillagers } from './components/NpcVillagers'
 import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
 import { HousePanel } from './components/HousePanel'
+import { DialoguePanel } from './components/DialoguePanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Effects } from './components/Effects'
 import { Ocean } from './components/Ocean'
 import { ZONES, HOUSES, GEMS, type HouseData, type ZoneData } from './data/portfolio'
 import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
+import type { VillagerDef } from './game/npcs'
+import { VILLAGERS } from './game/npcs'
 import { MODELS, type ModelKey } from './game/models'
 import { sfx } from './game/audio'
 import type { QuestState } from './components/QuestTracker'
@@ -89,6 +92,7 @@ interface SceneProps {
   activeZone: ZoneData | null
   modalZone: ZoneData | null
   modalHouse: HouseData | null
+  modalNpc: VillagerDef | null
   quality: Quality
   virtualInputRef: React.MutableRefObject<{ x: number; y: number }>
   virtualJumpRef: React.MutableRefObject<boolean>
@@ -96,6 +100,7 @@ interface SceneProps {
   attackRef: React.MutableRefObject<boolean>
   onZoneChange: (zone: ZoneData | null) => void
   onHouseChange: (house: HouseData | null) => void
+  onTalkChange: (npc: VillagerDef | null) => void
   onCollectGem: (id: number) => void
   onOpenZone: (zone: ZoneData) => void
   onHunt: () => void
@@ -113,6 +118,7 @@ const Scene = memo(function Scene(props: SceneProps) {
     activeZone,
     modalZone,
     modalHouse,
+    modalNpc,
     quality,
     virtualInputRef,
     virtualJumpRef,
@@ -120,6 +126,7 @@ const Scene = memo(function Scene(props: SceneProps) {
     attackRef,
     onZoneChange,
     onHouseChange,
+    onTalkChange,
     onCollectGem,
     onOpenZone,
     onHunt,
@@ -156,13 +163,17 @@ const Scene = memo(function Scene(props: SceneProps) {
 
       <Ocean quality={quality} />
 
-      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone || modalHouse)} cameraYawRef={cameraYawRef} />
+      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone || modalHouse || modalNpc)} cameraYawRef={cameraYawRef} />
 
       <Suspense fallback={null}>
-        <WorldEnvironment collectedIds={collectedGems} grassCount={quality === 'low' ? 1600 : 4000} />
+        <WorldEnvironment
+          collectedIds={collectedGems}
+          grassCount={quality === 'low' ? 1600 : 4000}
+          flowerCount={quality === 'low' ? 300 : 850}
+        />
         <Wildlife quality={quality} playerRef={playerRef} onHunt={onHunt} />
         <Suspense fallback={null}>
-          <NpcVillagers playerRef={playerRef} quality={quality} />
+          <NpcVillagers playerRef={playerRef} quality={quality} onTalkChange={onTalkChange} />
         </Suspense>
 
         {ZONES.map((zone) => (
@@ -223,6 +234,9 @@ export default function App() {
   const [activeHouse, setActiveHouse] = useState<HouseData | null>(null)
   const [modalHouse, setModalHouse] = useState<HouseData | null>(null)
   const [visitedHouses, setVisitedHouses] = useState<string[]>([])
+  const [activeNpc, setActiveNpc] = useState<VillagerDef | null>(null)
+  const [modalNpc, setModalNpc] = useState<VillagerDef | null>(null)
+  const [talkedNpcs, setTalkedNpcs] = useState<string[]>([])
   const [collectedGems, setCollectedGems] = useState<number[]>([])
   const [hunts, setHunts] = useState(0)
   const [quality, setQuality] = useState<Quality>('high')
@@ -313,6 +327,18 @@ export default function App() {
     sfx.uiOpen()
   }, [])
 
+  // Nearest-villager tracking (fires only when the active villager changes).
+  const onTalkChange = useCallback((npc: VillagerDef | null) => {
+    setActiveNpc((prev) => (prev?.id === npc?.id ? prev : npc))
+  }, [])
+
+  // Start a conversation: open the dialogue panel and record the chat.
+  const openNpc = useCallback((npc: VillagerDef) => {
+    setModalNpc(npc)
+    setTalkedNpcs((prev) => (prev.includes(npc.id) ? prev : [...prev, npc.id]))
+    sfx.uiOpen()
+  }, [])
+
   const onSceneReady = useCallback(() => setSceneReady(true), [])
 
   // Attack is edge-triggered via a ref (consumed by the Character each swing)
@@ -332,15 +358,23 @@ export default function App() {
   // Interact / close handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'KeyE' && activeZone && !modalZone) setModalZone(activeZone)
-      else if (e.code === 'KeyE' && !activeZone && activeHouse && !modalHouse) openHouse(activeHouse)
-      if (e.code === 'KeyF' && !modalZone && !modalHouse) attackRef.current = true
-      if (e.code === 'Escape' && modalZone) setModalZone(null)
-      if (e.code === 'Escape' && modalHouse) setModalHouse(null)
+      const anyModal = Boolean(modalZone || modalHouse || modalNpc)
+      if (e.code === 'KeyE' && !anyModal) {
+        // Priority: a nearby villager beats a zone, which beats a house.
+        if (activeNpc) openNpc(activeNpc)
+        else if (activeZone) setModalZone(activeZone)
+        else if (activeHouse) openHouse(activeHouse)
+      }
+      if (e.code === 'KeyF' && !anyModal) attackRef.current = true
+      if (e.code === 'Escape') {
+        setModalZone(null)
+        setModalHouse(null)
+        setModalNpc(null)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeZone, modalZone, activeHouse, modalHouse, openHouse])
+  }, [activeZone, activeHouse, activeNpc, modalZone, modalHouse, modalNpc, openHouse, openNpc])
 
   const handleTeleport = useCallback((zone: ZoneData) => {
     const x = zone.position[0]
@@ -389,6 +423,7 @@ export default function App() {
           activeZone={activeZone}
           modalZone={modalZone}
           modalHouse={modalHouse}
+          modalNpc={modalNpc}
           quality={quality}
           virtualInputRef={virtualInputRef}
           virtualJumpRef={virtualJumpRef}
@@ -396,18 +431,19 @@ export default function App() {
           attackRef={attackRef}
           onZoneChange={onZoneChange}
           onHouseChange={onHouseChange}
+          onTalkChange={onTalkChange}
           onCollectGem={onCollectGem}
           onOpenZone={setModalZone}
           onHunt={onHunt}
           onSceneReady={onSceneReady}
         />
-
         <Effects quality={quality} />
       </Canvas>
 
       <GameUI
         activeZone={activeZone}
         activeHouse={activeHouse}
+        activeNpc={activeNpc}
         playerPos={hud.pos}
         playerRotation={hud.rot}
         gemCount={collectedGems.length}
@@ -417,12 +453,15 @@ export default function App() {
         quests={quests}
         housesVisited={visitedHouses.length}
         totalHouses={HOUSES.length}
+        npcsTalked={talkedNpcs.length}
+        totalNpcs={VILLAGERS.length}
         quality={quality}
         onQualityChange={handleQualityChange}
         character={character}
         onCharacterChange={handleCharacterChange}
         onOpenZone={(zone) => setModalZone(zone)}
         onOpenHouse={openHouse}
+        onOpenNpc={openNpc}
         onTeleport={handleTeleport}
         onVirtualMove={handleVirtualMove}
         onVirtualJump={triggerMobileJump}
@@ -433,6 +472,8 @@ export default function App() {
       <PortfolioModal zone={modalZone} onClose={() => setModalZone(null)} />
 
       <HousePanel house={modalHouse} onClose={() => setModalHouse(null)} />
+
+      <DialoguePanel npc={modalNpc} onClose={() => setModalNpc(null)} />
 
       {showLoader && <LoadingScreen sceneReady={sceneReady} onDone={() => setShowLoader(false)} />}
     </main>

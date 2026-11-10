@@ -19,6 +19,7 @@ import {
 interface WorldEnvironmentProps {
   collectedIds: number[]
   grassCount?: number
+  flowerCount?: number
 }
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
@@ -243,7 +244,7 @@ const InstancedBatch: React.FC<{
   )
 }
 
-export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds, grassCount = 4000 }) => {
+export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds, grassCount = 4000, flowerCount }) => {
   const gemsGroupRef = useRef<THREE.Group>(null)
 
   const gems = useMemo(() => GEMS, [])
@@ -413,7 +414,7 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds
       </mesh>
 
       {/* 3. WIND-SWEPT GRASS */}
-      <GrassField count={grassCount} />
+      <GrassField count={grassCount} flowerCount={flowerCount} />
 
       {/* 4. CENTRAL SPAWN SANCTUARY */}
       <mesh receiveShadow position={[0, 0.05, 0]}>

@@ -148,6 +148,22 @@ export function distanceToPath(x: number, z: number): number {
   return best
 }
 
+// Ground cover (grass, flowers) stays clear of the plaza, outposts, houses and roads.
+const GROUND_COVER_FORBIDDEN = [
+  { x: 0, z: 0, r: 7 },
+  ...OUTPOSTS.map((o) => ({ x: o.x, z: o.z, r: 9 })),
+  ...HOUSES.map((h) => ({ x: h.x, z: h.z, r: 5.5 })),
+]
+
+/** Can grass / flowers grow at this XZ? (clear of buildings + roadways) */
+export function isGroundCoverAllowed(x: number, z: number): boolean {
+  if (distanceToPath(x, z) < 2.6) return false
+  for (const f of GROUND_COVER_FORBIDDEN) {
+    if (Math.hypot(x - f.x, z - f.z) < f.r) return false
+  }
+  return true
+}
+
 /** Can a wandering creature stand here? (inside boundary, not on a mountain, not in a house) */
 export function isWalkable(x: number, z: number): boolean {
   if (Math.hypot(x, z) > BOUNDARY_RADIUS - 5) return false

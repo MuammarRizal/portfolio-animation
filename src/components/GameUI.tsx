@@ -17,9 +17,11 @@ import {
   Server,
   UserRound,
   Home,
+  MessageSquare,
 } from 'lucide-react'
 import * as THREE from 'three'
 import { ZONES, type HouseData, type ZoneData } from '../data/portfolio'
+import type { VillagerDef } from '../game/npcs'
 import type { CharacterPreset } from '../game/characters'
 import { isMuted, setMuted, subscribeMuted, sfx } from '../game/audio'
 import { Minimap } from './Minimap'
@@ -37,6 +39,7 @@ const Switch: React.FC<{ on: boolean }> = ({ on }) => (
 interface GameUIProps {
   activeZone: ZoneData | null
   activeHouse: HouseData | null
+  activeNpc: VillagerDef | null
   playerPos: THREE.Vector3
   playerRotation: number
   gemCount: number
@@ -46,12 +49,15 @@ interface GameUIProps {
   quests: QuestState
   housesVisited: number
   totalHouses: number
+  npcsTalked: number
+  totalNpcs: number
   quality: 'high' | 'low'
   onQualityChange: (quality: 'high' | 'low') => void
   character: CharacterPreset
   onCharacterChange: (id: string) => void
   onOpenZone: (zone: ZoneData) => void
   onOpenHouse: (house: HouseData) => void
+  onOpenNpc: (npc: VillagerDef) => void
   onTeleport: (zone: ZoneData) => void
   onVirtualMove: (dir: { x: number; y: number }) => void
   onVirtualJump: () => void
@@ -62,6 +68,7 @@ interface GameUIProps {
 export const GameUI: React.FC<GameUIProps> = ({
   activeZone,
   activeHouse,
+  activeNpc,
   playerPos,
   playerRotation,
   gemCount,
@@ -71,12 +78,15 @@ export const GameUI: React.FC<GameUIProps> = ({
   quests,
   housesVisited,
   totalHouses,
+  npcsTalked,
+  totalNpcs,
   quality,
   onQualityChange,
   character,
   onCharacterChange,
   onOpenZone,
   onOpenHouse,
+  onOpenNpc,
   onTeleport,
   onVirtualMove,
   onVirtualJump,
@@ -303,6 +313,8 @@ export const GameUI: React.FC<GameUIProps> = ({
             totalGems={totalGems}
             housesVisited={housesVisited}
             totalHouses={totalHouses}
+            npcsTalked={npcsTalked}
+            totalNpcs={totalNpcs}
           />
         </div>
         <div className="pointer-events-auto hidden md:block hud-short-hide">
@@ -423,6 +435,10 @@ export const GameUI: React.FC<GameUIProps> = ({
               <span className="font-mono bg-rose-50 px-2 py-0.5 rounded text-rose-700 border border-rose-200">F / SERANG</span>
             </div>
             <div className="flex justify-between items-center">
+              <span>Ngobrol dengan Warga</span>
+              <span className="font-mono bg-emerald-50 px-2 py-0.5 rounded text-emerald-700 border border-emerald-200">Dekati + E</span>
+            </div>
+            <div className="flex justify-between items-center">
               <span>Mode Lanskap</span>
               <span className="font-mono bg-indigo-50 px-2 py-0.5 rounded text-indigo-700 border border-indigo-200">📱 Layar Penuh + Kunci Lanskap</span>
             </div>
@@ -435,7 +451,23 @@ export const GameUI: React.FC<GameUIProps> = ({
       )}
 
       {/* 3. CENTER INTERACTION PROMPT */}
-      {activeZone ? (
+      {activeNpc ? (
+        <div className="self-center pointer-events-auto animate-bounce mb-2">
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onOpenNpc(activeNpc)
+            }}
+            className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/90 hover:bg-white border-2 text-slate-900 font-bold shadow-xl backdrop-blur-md transition transform hover:scale-105 cursor-pointer touch-none"
+            style={{ borderColor: activeNpc.accent, boxShadow: `0 0 25px ${activeNpc.accent}60` }}
+          >
+            <MessageSquare className="w-4 h-4" style={{ color: activeNpc.accent }} />
+            <span>Ngobrol dengan {activeNpc.name}</span>
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">[E]</span>
+          </button>
+        </div>
+      ) : activeZone ? (
         <div className="self-center pointer-events-auto animate-bounce mb-2">
           <button
             onPointerDown={(e) => {
@@ -495,7 +527,20 @@ export const GameUI: React.FC<GameUIProps> = ({
 
           <div className="flex flex-col items-end gap-2.5 touch-none">
             <div className="flex items-center gap-2">
-              {activeZone ? (
+              {activeNpc ? (
+                <button
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onOpenNpc(activeNpc)
+                  }}
+                  className="w-13 h-13 rounded-full flex flex-col items-center justify-center font-black shadow-lg border-2 transition active:scale-95 animate-bounce touch-none"
+                  style={{ backgroundColor: `${activeNpc.accent}dd`, borderColor: '#ffffff', color: '#ffffff', boxShadow: `0 0 16px ${activeNpc.accent}` }}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <span className="text-[8px] tracking-tight">NGOBROL</span>
+                </button>
+              ) : activeZone ? (
                 <button
                   onPointerDown={(e) => {
                     e.preventDefault()
