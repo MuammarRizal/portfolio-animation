@@ -7,7 +7,6 @@ interface FollowCameraProps {
   playerRef: React.MutableRefObject<PlayerState>
   zoomInZone: boolean
   cameraYawRef: React.MutableRefObject<number>
-  autoRotate?: boolean
 }
 
 /**
@@ -15,7 +14,7 @@ interface FollowCameraProps {
  * Reads the player purely from a ref (no per-frame React state), and keeps the
  * camera above the terrain so it never clips through hills and mountains.
  */
-export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZone, cameraYawRef, autoRotate = false }) => {
+export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZone, cameraYawRef }) => {
   const { camera, gl } = useThree()
 
   const currentPos = useRef(new THREE.Vector3(0, 12, 18))
@@ -83,11 +82,7 @@ export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZon
 
     const gate = Math.max(0, Math.cos(headingDiff))
 
-    if (autoRotate) {
-      // Cinematic mode: slowly orbit the hero regardless of facing.
-      autoYaw.current += dt * 0.25
-      dragCooldown.current = Math.max(0, dragCooldown.current - dt)
-    } else if (dragCooldown.current > 0) {
+    if (dragCooldown.current > 0) {
       dragCooldown.current -= dt
     } else {
       autoYaw.current += headingDiff * dt * 2.6 * gate

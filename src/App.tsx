@@ -63,7 +63,6 @@ interface SceneProps {
   activeZone: ZoneData | null
   modalZone: ZoneData | null
   quality: Quality
-  autoRotate: boolean
   virtualInputRef: React.MutableRefObject<{ x: number; y: number }>
   virtualJumpRef: React.MutableRefObject<boolean>
   virtualSprintRef: React.MutableRefObject<boolean>
@@ -84,7 +83,6 @@ const Scene = memo(function Scene(props: SceneProps) {
     activeZone,
     modalZone,
     quality,
-    autoRotate,
     virtualInputRef,
     virtualJumpRef,
     virtualSprintRef,
@@ -114,7 +112,7 @@ const Scene = memo(function Scene(props: SceneProps) {
         mieDirectionalG={0.85}
       />
 
-      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone)} cameraYawRef={cameraYawRef} autoRotate={autoRotate} />
+      <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone)} cameraYawRef={cameraYawRef} />
 
       <Suspense fallback={null}>
         <WorldEnvironment collectedIds={collectedGems} grassCount={quality === 'low' ? 1600 : 4000} />
@@ -173,7 +171,6 @@ export default function App() {
   const [collectedGems, setCollectedGems] = useState<number[]>([])
   const [hunts, setHunts] = useState(0)
   const [quality, setQuality] = useState<Quality>('high')
-  const [autoRotate, setAutoRotate] = useState(false)
 
   const [quests, setQuests] = useState<QuestState>({
     visitedAbout: false,
@@ -279,7 +276,6 @@ export default function App() {
           activeZone={activeZone}
           modalZone={modalZone}
           quality={quality}
-          autoRotate={autoRotate}
           virtualInputRef={virtualInputRef}
           virtualJumpRef={virtualJumpRef}
           virtualSprintRef={virtualSprintRef}
@@ -302,8 +298,6 @@ export default function App() {
         quests={quests}
         quality={quality}
         onQualityChange={setQuality}
-        autoRotate={autoRotate}
-        onAutoRotateChange={setAutoRotate}
         onOpenZone={(zone) => setModalZone(zone)}
         onTeleport={handleTeleport}
         onVirtualMove={handleVirtualMove}

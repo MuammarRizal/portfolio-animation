@@ -7,8 +7,7 @@ import {
   HelpCircle,
   Maximize2,
   Minimize2,
-  RotateCw,
-  Clapperboard,
+  Smartphone,
   Gem,
   Sliders,
   Zap,
@@ -40,8 +39,6 @@ interface GameUIProps {
   quests: QuestState
   quality: 'high' | 'low'
   onQualityChange: (quality: 'high' | 'low') => void
-  autoRotate: boolean
-  onAutoRotateChange: (autoRotate: boolean) => void
   onOpenZone: (zone: ZoneData) => void
   onTeleport: (zone: ZoneData) => void
   onVirtualMove: (dir: { x: number; y: number }) => void
@@ -61,8 +58,6 @@ export const GameUI: React.FC<GameUIProps> = ({
   quests,
   quality,
   onQualityChange,
-  autoRotate,
-  onAutoRotateChange,
   onOpenZone,
   onTeleport,
   onVirtualMove,
@@ -75,6 +70,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   const [isAudioMuted, setIsAudioMuted] = useState(true)
   const [isSprintActive, setIsSprintActive] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isLandscape, setIsLandscape] = useState(false)
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
@@ -82,23 +78,70 @@ export const GameUI: React.FC<GameUIProps> = ({
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
 
-  const enterFullscreen = () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {})
+  const enterFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen()
+    } catch {
+      /* ignore */
+    }
   }
-  const exitFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+  const exitFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+    } catch {
+      /* ignore */
+    }
   }
+
+  // Screen Orientation API — not in every TS lib, and unsupported on iOS Safari.
+  const orientation = (
+    screen as unknown as {
+      orientation?: { lock?: (o: string) => Promise<void>; unlock?: () => void }
+    }
+  ).orientation
+
+  const lockLandscape = async () => {
+    try {
+      if (orientation?.lock) {
+        await orientation.lock('landscape')
+        setIsLandscape(true)
+      }
+    } catch {
+      /* unsupported or rejected */
+    }
+  }
+  const unlockLandscape = () => {
+    try {
+      orientation?.unlock?.()
+    } catch {
+      /* ignore */
+    }
+    setIsLandscape(false)
+  }
+
+  // One-tap "Landscape": enter fullscreen, then lock the screen orientation.
+  const enterLandscapeFullscreen = async () => {
+    await enterFullscreen()
+    await lockLandscape()
+  }
+  const exitLandscapeFullscreen = async () => {
+    unlockLandscape()
+    await exitFullscreen()
+  }
+
+  const toggleLandscapeFullscreen = () => {
+    if (document.fullscreenElement) exitLandscapeFullscreen()
+    else enterLandscapeFullscreen()
+  }
+
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) exitFullscreen()
+    if (document.fullscreenElement) exitLandscapeFullscreen()
     else enterFullscreen()
   }
 
-  // One-tap "Cinema": auto-rotate camera + go fullscreen together.
-  const toggleCinema = () => {
-    const next = !autoRotate
-    onAutoRotateChange(next)
-    if (next) enterFullscreen()
-    else exitFullscreen()
+  const toggleLandscape = () => {
+    if (isLandscape) unlockLandscape()
+    else enterLandscapeFullscreen()
   }
 
   const openSettingsPanel = () => {
@@ -174,19 +217,19 @@ export const GameUI: React.FC<GameUIProps> = ({
           </button>
 
           <button
-            onClick={toggleCinema}
+            onClick={toggleLandscapeFullscreen}
             className={`p-2 sm:p-2.5 rounded-xl transition cursor-pointer ${
-              autoRotate
+              isLandscape || isFullscreen
                 ? 'bg-blue-600 text-white border border-blue-500 shadow-lg'
                 : 'bg-white/85 backdrop-blur-md border border-white/70 shadow-lg shadow-slate-900/5 text-slate-600 hover:text-slate-900 hover:bg-white'
             }`}
             title={
-              autoRotate
-                ? 'Cinema Mode: ON — auto-rotate + fullscreen'
-                : 'Cinema Mode — auto-rotate kamera + fullscreen'
+              isLandscape
+                ? 'Mode Landscape: ON — fullscreen + kunci landscape'
+                : 'Mode Landscape — fullscreen + kunci landscape'
             }
           >
-            <Clapperboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </header>
@@ -213,14 +256,14 @@ export const GameUI: React.FC<GameUIProps> = ({
             <label className="text-slate-500 block">Camera & Display</label>
 
             <button
-              onClick={() => onAutoRotateChange(!autoRotate)}
+              onClick={toggleLandscape}
               className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition cursor-pointer"
             >
               <span className="flex items-center gap-2 font-semibold text-slate-700">
-                <RotateCw className={`w-4 h-4 ${autoRotate ? 'text-blue-600' : 'text-slate-400'}`} />
-                Auto-Rotate Kamera
+                <Smartphone className={`w-4 h-4 ${isLandscape ? 'text-blue-600' : 'text-slate-400'}`} />
+                Kunci Landscape
               </span>
-              <Switch on={autoRotate} />
+              <Switch on={isLandscape} />
             </button>
 
             <button
@@ -302,8 +345,8 @@ export const GameUI: React.FC<GameUIProps> = ({
               <span className="font-mono bg-rose-50 px-2 py-0.5 rounded text-rose-700 border border-rose-200">F / ATTACK</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Mode Cinema</span>
-              <span className="font-mono bg-indigo-50 px-2 py-0.5 rounded text-indigo-700 border border-indigo-200">🎬 Auto-Rotate + Fullscreen</span>
+              <span>Mode Landscape</span>
+              <span className="font-mono bg-indigo-50 px-2 py-0.5 rounded text-indigo-700 border border-indigo-200">📱 Fullscreen + Kunci Landscape</span>
             </div>
           </div>
           <p className="text-[11px] text-slate-500 border-t border-slate-200 pt-2 leading-relaxed">
