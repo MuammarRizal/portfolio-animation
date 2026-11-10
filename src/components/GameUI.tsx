@@ -14,6 +14,7 @@ import {
   ArrowUp,
   Hand,
   Sword,
+  Server,
 } from 'lucide-react'
 import * as THREE from 'three'
 import { ZONES, type ZoneData } from '../data/portfolio'
@@ -177,6 +178,13 @@ export const GameUI: React.FC<GameUIProps> = ({
               MUAMMAR RIZAL{' '}
               <span className="text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm">
                 DUNIA RPG
+              </span>
+              <span
+                className="flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-emerald-600 text-white shadow-sm"
+                title="Berjalan di VPS"
+              >
+                <Server className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                VPS
               </span>
             </h1>
             <p className="text-[10px] sm:text-[11px] text-slate-600 hidden md:block">
