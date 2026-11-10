@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Sky } from '@react-three/drei'
+import { Sky, PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
 import confetti from 'canvas-confetti'
 
@@ -14,6 +14,7 @@ import { NpcVillagers } from './components/NpcVillagers'
 import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
 import { LoadingScreen } from './components/LoadingScreen'
+import { Effects } from './components/Effects'
 import { ZONES, GEMS, type ZoneData } from './data/portfolio'
 import { DEFAULT_CHARACTER_ID, getCharacter, type CharacterPreset } from './game/characters'
 import { sfx } from './game/audio'
@@ -201,6 +202,11 @@ export default function App() {
   const [hunts, setHunts] = useState(0)
   const [quality, setQuality] = useState<Quality>('high')
 
+  // Adaptive resolution cap: PerformanceMonitor walks this down when frames get
+  // expensive and back up when they are cheap again. Floored at 0.9 so a
+  // struggling device never turns into a blurry mess.
+  const [dprCap, setDprCap] = useState(1.6)
+
   // First-load gate: keep the world hidden behind the loader until the 3D scene
   // has really painted its first frames.
   const [sceneReady, setSceneReady] = useState(false)
@@ -223,6 +229,12 @@ export default function App() {
     } catch {
       /* storage unavailable — selection just won't persist */
     }
+  }, [])
+
+  // Switching tier also resets the adaptive resolution cap.
+  const handleQualityChange = useCallback((next: Quality) => {
+    setQuality(next)
+    setDprCap(next === 'low' ? 1 : 1.6)
   }, [])
 
   const [quests, setQuests] = useState<QuestState>({
@@ -319,11 +331,16 @@ export default function App() {
     <main className="relative w-screen h-screen overflow-hidden bg-sky-200 select-none">
       <Canvas
         shadows={quality === 'high'}
-        dpr={quality === 'low' ? [0.75, 1] : [1, 1.6]}
+        dpr={[0.75, dprCap]}
         style={{ touchAction: 'none' }}
         camera={{ position: [0, 18, 24], fov: 48, near: 0.1, far: 400 }}
-        gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       >
+        <PerformanceMonitor
+          flipflops={3}
+          onDecline={() => setDprCap((c) => Math.max(0.9, Math.round((c - 0.2) * 100) / 100))}
+          onIncline={() => setDprCap((c) => Math.min(1.6, Math.round((c + 0.1) * 100) / 100))}
+        />
         <Scene
           character={character}
           keys={keys}
@@ -344,6 +361,8 @@ export default function App() {
           onHunt={onHunt}
           onSceneReady={onSceneReady}
         />
+
+        <Effects quality={quality} />
       </Canvas>
 
       <GameUI
@@ -356,7 +375,7 @@ export default function App() {
         hunts={hunts}
         quests={quests}
         quality={quality}
-        onQualityChange={setQuality}
+        onQualityChange={handleQualityChange}
         character={character}
         onCharacterChange={handleCharacterChange}
         onOpenZone={(zone) => setModalZone(zone)}

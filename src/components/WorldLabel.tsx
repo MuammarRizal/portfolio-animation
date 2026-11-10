@@ -101,7 +101,7 @@ export const WorldLabel: React.FC<WorldLabelProps> = ({
   return (
     <mesh renderOrder={10}>
       <planeGeometry args={[width, height]} />
-      <meshBasicMaterial map={texture} transparent depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial map={texture} transparent depthWrite={false} />
     </mesh>
   )
 }
