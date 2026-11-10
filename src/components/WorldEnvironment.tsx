@@ -21,6 +21,15 @@ interface WorldEnvironmentProps {
 const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const TERRAIN_SIZE = TERRAIN_RADIUS * 2 + 30
 
+/** Minimal placement record: a world transform one InstancedMesh instance needs. */
+interface Placement {
+  x: number
+  y: number
+  z: number
+  scale: number
+  rot: number
+}
+
 // ---- shared geometries (baked local offsets so scale grows from the ground) ----
 const G = {
   trunk: (() => {
@@ -68,6 +77,27 @@ const G = {
     g.translate(0, 1.7, 0)
     return g
   })(),
+  // Archway parts: local offsets baked in so one instance = one whole part placed at an archway origin.
+  archPillarL: (() => {
+    const g = new THREE.BoxGeometry(1.0, 6, 1.0)
+    g.translate(-2.4, 3, 0)
+    return g
+  })(),
+  archPillarR: (() => {
+    const g = new THREE.BoxGeometry(1.0, 6, 1.0)
+    g.translate(2.4, 3, 0)
+    return g
+  })(),
+  archLintel: (() => {
+    const g = new THREE.BoxGeometry(6.4, 0.9, 1.2)
+    g.translate(0, 6.3, 0)
+    return g
+  })(),
+  archBanner: (() => {
+    const g = new THREE.PlaneGeometry(3.6, 0.3)
+    g.translate(0, 6.3, 0.65)
+    return g
+  })(),
 }
 
 const M = {
@@ -85,6 +115,9 @@ const M = {
   lanternPost: new THREE.MeshStandardMaterial({ color: '#9aa6b2', roughness: 0.7 }),
   lanternOrb: new THREE.MeshStandardMaterial({ color: '#fcd34d', emissive: '#f59e0b', emissiveIntensity: 1.4 }),
   stone: new THREE.MeshStandardMaterial({ color: '#8d99a6', roughness: 0.9, flatShading: true }),
+  archPillar: new THREE.MeshStandardMaterial({ color: '#aab4c0', roughness: 0.85, flatShading: true }),
+  archLintel: new THREE.MeshStandardMaterial({ color: '#c3ccd7', roughness: 0.8, flatShading: true }),
+  archBanner: new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0ea5e9', emissiveIntensity: 1 }),
 }
 
 // ---- terrain palette ----
@@ -100,7 +133,7 @@ const C_CLIFF = new THREE.Color('#7c848d')
 const InstancedBatch: React.FC<{
   geometry: THREE.BufferGeometry
   material: THREE.Material
-  items: Decoration[]
+  items: Placement[]
   castShadow?: boolean
 }> = ({ geometry, material, items, castShadow = true }) => {
   const ref = useRef<THREE.InstancedMesh>(null!)
@@ -157,6 +190,19 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds
       ruin: DECORATIONS.filter((d) => d.type === 'ruin'),
       lantern: DECORATIONS.filter((d) => d.type === 'lantern'),
     }),
+    []
+  )
+
+  // Archways as instanced parts: one batch per part type instead of 4 meshes per arch.
+  const archItems = useMemo<Placement[]>(
+    () =>
+      ARCHWAYS.map((a) => ({
+        x: a.x,
+        y: getTerrainHeight(a.x, a.z),
+        z: a.z,
+        scale: 1,
+        rot: a.rot,
+      })),
     []
   )
 
@@ -275,30 +321,11 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ collectedIds
         <meshBasicMaterial color="#38bdf8" transparent opacity={0.5} />
       </mesh>
 
-      {/* 5. NORSE-STYLE STONE ARCHWAYS ALONG THE ROADS */}
-      {ARCHWAYS.map((arch, idx) => {
-        const y = getTerrainHeight(arch.x, arch.z)
-        return (
-          <group key={`arch-${idx}`} position={[arch.x, y, arch.z]} rotation={[0, arch.rot, 0]}>
-            <mesh position={[-2.4, 3, 0]} castShadow>
-              <boxGeometry args={[1.0, 6, 1.0]} />
-              <meshStandardMaterial color="#aab4c0" roughness={0.85} flatShading />
-            </mesh>
-            <mesh position={[2.4, 3, 0]} castShadow>
-              <boxGeometry args={[1.0, 6, 1.0]} />
-              <meshStandardMaterial color="#aab4c0" roughness={0.85} flatShading />
-            </mesh>
-            <mesh position={[0, 6.3, 0]} castShadow>
-              <boxGeometry args={[6.4, 0.9, 1.2]} />
-              <meshStandardMaterial color="#c3ccd7" roughness={0.8} flatShading />
-            </mesh>
-            <mesh position={[0, 6.3, 0.65]}>
-              <planeGeometry args={[3.6, 0.3]} />
-              <meshStandardMaterial color="#38bdf8" emissive="#0ea5e9" emissiveIntensity={1} />
-            </mesh>
-          </group>
-        )
-      })}
+      {/* 5. NORSE-STYLE STONE ARCHWAYS ALONG THE ROADS (instanced: 4 batches, not 4 meshes per arch) */}
+      <InstancedBatch geometry={G.archPillarL} material={M.archPillar} items={archItems} />
+      <InstancedBatch geometry={G.archPillarR} material={M.archPillar} items={archItems} />
+      <InstancedBatch geometry={G.archLintel} material={M.archLintel} items={archItems} />
+      <InstancedBatch geometry={G.archBanner} material={M.archBanner} items={archItems} castShadow={false} />
 
       {/* 6. STEPPING-STONE ELEVATIONS */}
       <group position={[0, getTerrainHeight(0, -22), -22]}>
