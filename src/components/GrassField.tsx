@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { getTerrainHeight, isGroundCoverAllowed } from '../game/world'
+import type { World } from '../game/world'
 
 const MAX_RADIUS = 62
 
@@ -17,8 +17,6 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
-
-const GRASS_GREENS = ['#4d7c0f', '#5c8a2e', '#65a30d', '#79b41f', '#3f6212', '#84cc16', '#6aa03f']
 
 interface Placement {
   x: number
@@ -104,12 +102,8 @@ const FLOWER_SPECS: Record<FlowerType, FlowerSpec> = {
   buttercup: { petals: 5, petalR: 0.05, ringR: 0.046, tilt: 0.5 },
 }
 
-const FLOWER_COLORS: Record<FlowerType, string> = {
-  daisy: '#ffffff',
-  tulip: '#ef4444',
-  cornflower: '#3b82f6',
-  buttercup: '#facc15',
-}
+/** Petal colour per species index, matching `BiomePalette.flowers`. */
+const FLOWER_ORDER: FlowerType[] = ['daisy', 'tulip', 'cornflower', 'buttercup']
 
 /** A ring of petal discs, tilted up into a shallow bowl. Sits at the stem top. */
 function makePetalRing(spec: FlowerSpec): THREE.BufferGeometry {
@@ -179,6 +173,7 @@ function applyWind(mat: THREE.MeshStandardMaterial, uniforms: React.MutableRefOb
 function fillMesh(
   mesh: THREE.InstancedMesh | null,
   items: Placement[],
+  heightAt: (x: number, z: number) => number,
   colors?: string[]
 ): void {
   if (!mesh) return
@@ -186,7 +181,7 @@ function fillMesh(
   const color = new THREE.Color()
   for (let i = 0; i < items.length; i++) {
     const it = items[i]
-    dummy.position.set(it.x, getTerrainHeight(it.x, it.z), it.z)
+    dummy.position.set(it.x, heightAt(it.x, it.z), it.z)
     dummy.rotation.set(it.tiltX, it.rot, it.tiltZ)
     dummy.scale.set(it.scaleXZ, it.scaleY, it.scaleXZ)
     dummy.updateMatrix()
@@ -213,11 +208,21 @@ interface FlowerInstance extends Placement {
  * always agree, and split into a handful of instanced batches (one draw call
  * each for thousands of blades).
  */
-export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
+export const GrassField: React.FC<{ world: World; count?: number; flowerCount?: number }> = ({
+  world,
   count = 4000,
   flowerCount,
 }) => {
   const flowerTotal = flowerCount ?? Math.round(count * 0.24)
+  const palette = world.def.palette
+  const grassHues = palette.grass
+  const flowerHex: Record<FlowerType, string> = {
+    daisy: palette.flowers[0],
+    tulip: palette.flowers[1],
+    cornflower: palette.flowers[2],
+    buttercup: palette.flowers[3],
+  }
+  const rockLine = palette.rockHeight
 
   const grassRef = useRef<THREE.InstancedMesh>(null!)
   const stemRef = useRef<THREE.InstancedMesh>(null!)
@@ -271,13 +276,14 @@ export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
     applyWind(stem, uniforms, 0.07)
     applyWind(center, uniforms, 0.07)
     return {
-      daisy: petal(FLOWER_COLORS.daisy),
-      tulip: petal(FLOWER_COLORS.tulip),
-      cornflower: petal(FLOWER_COLORS.cornflower),
-      buttercup: petal(FLOWER_COLORS.buttercup),
+      daisy: petal(flowerHex.daisy),
+      tulip: petal(flowerHex.tulip),
+      cornflower: petal(flowerHex.cornflower),
+      buttercup: petal(flowerHex.buttercup),
       stem,
       center,
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ---- deterministic placement ----
@@ -292,8 +298,8 @@ export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
       const x = Math.cos(a) * r
       const z = Math.sin(a) * r
       if (Math.hypot(x, z) > MAX_RADIUS) continue
-      if (!isGroundCoverAllowed(x, z)) continue
-      if (getTerrainHeight(x, z) > 6) continue // no grass up the mountains
+      if (!world.groundCoverAllowed(x, z)) continue
+      if (world.terrainAt(x, z) > rockLine) continue // no grass up the mountains
       out.push({
         x,
         z,
@@ -305,16 +311,16 @@ export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
       })
     }
     return out
-  }, [count])
+  }, [count, world, rockLine])
 
   const grassColors = useMemo(
-    () => grassData.map((_, i) => GRASS_GREENS[(i * 7 + (i % 3)) % GRASS_GREENS.length]),
-    [grassData]
+    () => grassData.map((_, i) => grassHues[(i * 7 + (i % 3)) % grassHues.length]),
+    [grassData, grassHues]
   )
 
   const flowers = useMemo<FlowerInstance[]>(() => {
     const rng = mulberry32(913377)
-    const types: FlowerType[] = ['daisy', 'tulip', 'cornflower', 'buttercup']
+    const types: FlowerType[] = FLOWER_ORDER
     const out: FlowerInstance[] = []
     let guard = 0
     while (out.length < flowerTotal && guard < flowerTotal * 12) {
@@ -324,8 +330,8 @@ export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
       const x = Math.cos(a) * r
       const z = Math.sin(a) * r
       if (Math.hypot(x, z) > MAX_RADIUS) continue
-      if (!isGroundCoverAllowed(x, z)) continue
-      if (getTerrainHeight(x, z) > 5.5) continue
+      if (!world.groundCoverAllowed(x, z)) continue
+      if (world.terrainAt(x, z) > Math.max(0.5, rockLine - 0.5)) continue
       out.push({
         x,
         z,
@@ -338,7 +344,7 @@ export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
       })
     }
     return out
-  }, [flowerTotal])
+  }, [flowerTotal, world, rockLine])
 
   const flowersByType = useMemo(
     () => ({
@@ -351,20 +357,21 @@ export const GrassField: React.FC<{ count?: number; flowerCount?: number }> = ({
   )
 
   useEffect(() => {
-    fillMesh(grassRef.current, grassData, grassColors)
-    fillMesh(stemRef.current, flowers)
-    fillMesh(centerRef.current, flowers)
-    fillMesh(petalRefs.daisy.current, flowersByType.daisy)
-    fillMesh(petalRefs.tulip.current, flowersByType.tulip)
-    fillMesh(petalRefs.cornflower.current, flowersByType.cornflower)
-    fillMesh(petalRefs.buttercup.current, flowersByType.buttercup)
-  }, [grassData, grassColors, flowers, flowersByType])
+    const heightAt = (x: number, z: number) => world.terrainAt(x, z)
+    fillMesh(grassRef.current, grassData, heightAt, grassColors)
+    fillMesh(stemRef.current, flowers, heightAt)
+    fillMesh(centerRef.current, flowers, heightAt)
+    fillMesh(petalRefs.daisy.current, flowersByType.daisy, heightAt)
+    fillMesh(petalRefs.tulip.current, flowersByType.tulip, heightAt)
+    fillMesh(petalRefs.cornflower.current, flowersByType.cornflower, heightAt)
+    fillMesh(petalRefs.buttercup.current, flowersByType.buttercup, heightAt)
+  }, [world, grassData, grassColors, flowers, flowersByType])
 
   useFrame((state) => {
     uniforms.current.uTime.value = state.clock.elapsedTime
   })
 
-  const flowerSpecies: FlowerType[] = ['daisy', 'tulip', 'cornflower', 'buttercup']
+  const flowerSpecies: FlowerType[] = FLOWER_ORDER
 
   return (
     <group>

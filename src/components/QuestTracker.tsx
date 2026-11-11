@@ -1,16 +1,17 @@
 import React, { useState } from 'react'
 import { CheckCircle2, Circle, Trophy, ChevronRight, ChevronDown } from 'lucide-react'
+import type { ZoneData } from '../data/portfolio'
 
 export interface QuestState {
-  visitedAbout: boolean
-  visitedProjects: boolean
-  visitedSkills: boolean
-  visitedContact: boolean
+  /** Ids of the outposts whose portfolio panel has been opened. */
+  visitedZones: string[]
   allGemsCollected: boolean
 }
 
 interface QuestTrackerProps {
   quests: QuestState
+  /** Every outpost across every island — one quest row each. */
+  zones: ZoneData[]
   gemsCollected: number
   totalGems: number
   housesVisited: number
@@ -21,6 +22,7 @@ interface QuestTrackerProps {
 
 export const QuestTracker: React.FC<QuestTrackerProps> = ({
   quests,
+  zones,
   gemsCollected,
   totalGems,
   housesVisited,
@@ -36,10 +38,10 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({
   const chatDone = npcsTalked >= CHAT_GOAL
 
   const items = [
-    { title: 'Kunjungi Kuil Identitas', done: quests.visitedAbout },
-    { title: 'Masuki Aula Kreasi', done: quests.visitedProjects },
-    { title: 'Aktifkan Nexus Teknologi', done: quests.visitedSkills },
-    { title: 'Capai Puncak Mercusuar', done: quests.visitedContact },
+    ...zones.map((z) => ({
+      title: `Kunjungi ${z.title}`,
+      done: quests.visitedZones.includes(z.id),
+    })),
     {
       title: `Mampir ke Rumah Warga (${housesVisited}/${totalHouses})`,
       done: villageDone,

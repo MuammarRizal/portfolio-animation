@@ -309,6 +309,7 @@ export const GameUI: React.FC<GameUIProps> = ({
         <div className="pointer-events-auto hud-short-hide">
           <QuestTracker
             quests={quests}
+            zones={ZONES}
             gemsCollected={gemCount}
             totalGems={totalGems}
             housesVisited={housesVisited}

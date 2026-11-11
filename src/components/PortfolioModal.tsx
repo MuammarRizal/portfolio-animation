@@ -92,8 +92,14 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
           </div>
         </div>
 
+        {zone.blurb && (
+          <p className="mb-5 -mt-2 text-xs sm:text-sm italic text-slate-500 border-l-2 pl-3" style={{ borderColor: zone.color }}>
+            {zone.blurb}
+          </p>
+        )}
+
         {/* 1. ABOUT */}
-        {zone.id === 'about' && (
+        {zone.kind === 'about' && (
           <div className="space-y-6 text-slate-700 leading-relaxed text-sm sm:text-base">
             <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-slate-50 to-white border border-blue-200">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white font-black text-2xl shadow-lg shrink-0 border border-blue-300">
@@ -141,7 +147,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
         )}
 
         {/* 2. PROJECTS */}
-        {zone.id === 'projects' && (
+        {zone.kind === 'projects' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2">
               {(['all', '3d', 'fullstack'] as const).map((f) => (
@@ -193,7 +199,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
         )}
 
         {/* 3. SKILLS */}
-        {zone.id === 'skills' && (
+        {zone.kind === 'skills' && (
           <div className="space-y-5">
             <p className="text-sm text-slate-500">
               Klasifikasi teknologi, library, dan arsitektur yang dikuasai untuk membangun produk digital berstandar tinggi:
@@ -219,7 +225,7 @@ export const PortfolioModal: React.FC<PortfolioModalProps> = ({ zone, onClose })
         )}
 
         {/* 4. CONTACT */}
-        {zone.id === 'contact' && (
+        {zone.kind === 'contact' && (
           <div className="space-y-5">
             <p className="text-sm text-slate-600">
               Punya ide proyek seru, tawaran kolaborasi, atau butuh konsultasi teknis? Kirim pesan langsung di bawah!

@@ -71,6 +71,9 @@ export interface BiomePalette {
   rock: string
   snow: string
   cliff: string
+  /** Decoration colours: tree trunk and its two canopy layers. */
+  trunk: string
+  foliage: [string, string]
   /** Terrain height where rock starts to blend in. */
   rockHeight: number
   /** Terrain height where snow starts to blend in. */
@@ -132,7 +135,7 @@ const islandHijau: WorldMapDef = {
   id: hijau.id,
   name: hijau.name,
   subtitle: hijau.subtitle,
-  origin: [0, 0],
+  origin: hijau.origin,
   terrainRadius: 66,
   boundaryRadius: 60,
   hills: [
@@ -177,6 +180,8 @@ const islandHijau: WorldMapDef = {
     rock: '#9aa3ac',
     snow: '#eef3f7',
     cliff: '#7c848d',
+    trunk: '#6b4a2b',
+    foliage: ['#2f7d32', '#4caf50'],
     rockHeight: 6,
     snowHeight: 13,
     grass: ['#4d7c0f', '#5c8a2e', '#65a30d', '#79b41f', '#3f6212', '#84cc16', '#6aa03f'],
@@ -196,8 +201,87 @@ const islandHijau: WorldMapDef = {
   villagers: ISLAND_VILLAGERS[hijau.id] ?? [],
 }
 
+// ---------------------------------------------------------------------------
+// Island II — "Pulau Salju" (frozen tundra, across the sea from Pulau Hijau)
+// ---------------------------------------------------------------------------
+
+const salju = ISLANDS.salju
+
+const SALJU_OUTPOSTS: Spot[] = salju.zones.map((z) => ({ x: z.position[0], z: z.position[2], r: 12 }))
+const SALJU_HOUSE_PADS: Spot[] = salju.houses.map((h) => ({ x: h.x, z: h.z, r: 6 }))
+
+const islandSalju: WorldMapDef = {
+  id: salju.id,
+  name: salju.name,
+  subtitle: salju.subtitle,
+  origin: salju.origin,
+  terrainRadius: 66,
+  boundaryRadius: 60,
+  hills: [
+    { x: -20, z: 8, radius: 15, height: 5.2 },
+    { x: 24, z: -8, radius: 13, height: 4.4 },
+    { x: 12, z: 28, radius: 15, height: 6.0 },
+    { x: -26, z: -12, radius: 12, height: 4.0 },
+    { x: 34, z: 22, radius: 13, height: 4.6 },
+    { x: -10, z: -36, radius: 13, height: 5.2 },
+    { x: 6, z: -18, radius: 10, height: 3.2 },
+  ],
+  mountains: [
+    { x: -48, z: 6, radius: 10, height: 22 },
+    { x: 48, z: -44, radius: 11, height: 26 },
+    { x: -50, z: -54, radius: 9, height: 20 },
+    { x: 52, z: 50, radius: 10, height: 24 },
+  ],
+  paths: [
+    [0, 0, -36, -32],
+    [0, 0, 36, -32],
+    [0, 0, -36, 36],
+    [0, 0, 36, 36],
+  ],
+  archways: [
+    { x: -9, z: -8, rot: 0.84 },
+    { x: -27, z: -24, rot: 0.84 },
+    { x: 9, z: -8, rot: -0.84 },
+    { x: 27, z: -24, rot: -0.84 },
+    { x: -9, z: 9, rot: -0.9 },
+    { x: 9, z: 9, rot: 0.9 },
+  ],
+  extraForbidden: [],
+  decorationSeed: 771102,
+  decorationCount: 220,
+  flatSpots: [{ x: 0, z: 0, r: 10 }, ...SALJU_OUTPOSTS, ...SALJU_HOUSE_PADS],
+  spawn: [0, 0],
+  palette: {
+    ground: '#e6eef6',
+    groundLight: '#fbfdff',
+    path: '#cfd8e3',
+    sand: '#dbe7f0',
+    rock: '#8b98a6',
+    snow: '#f8fbff',
+    cliff: '#7d8b99',
+    trunk: '#5b4a3c',
+    foliage: ['#2f5d52', '#5f8d7f'],
+    rockHeight: 8,
+    snowHeight: 11,
+    grass: ['#9db8a8', '#cfe3d2', '#a7c9a0', '#e6f2ec', '#8fb0a2', '#d6e8dc', '#bcd7c6'],
+    flowers: ['#ffffff', '#f9a8d4', '#bfdbfe', '#fef08a'],
+    skyBackground: '#cfe7ff',
+    fog: '#dceaf7',
+    fogNear: 100,
+    fogFar: 300,
+    oceanDeep: '#123c56',
+    oceanSurface: '#3f97bd',
+    oceanSky: '#dceaf7',
+  },
+  docks: [],
+  zones: salju.zones,
+  gems: salju.gems,
+  houses: salju.houses,
+  villagers: ISLAND_VILLAGERS[salju.id] ?? [],
+}
+
 /** Every island definition, in load order. */
-export const MAP_DEFS: WorldMapDef[] = [islandHijau]
+export const MAP_DEFS: WorldMapDef[] = [islandHijau, islandSalju]
 
 /** The island the game boots on. */
 export const PRIMARY_MAP_ID = islandHijau.id

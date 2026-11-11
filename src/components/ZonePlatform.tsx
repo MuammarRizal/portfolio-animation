@@ -26,9 +26,9 @@ export const ZonePlatform: React.FC<ZonePlatformProps> = ({ zone, isInside, onTr
     }
   })
 
-  // Determine geometry by zone id
+  // Determine geometry by zone kind (zones on different islands share a kind)
   const renderIcon = () => {
-    switch (zone.id) {
+    switch (zone.kind) {
       case 'about':
         // Holographic ID badge / User Diamond
         return (

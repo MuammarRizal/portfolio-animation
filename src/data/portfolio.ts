@@ -7,19 +7,27 @@ export interface Project {
   color: string
 }
 
+/** Which portfolio panel a zone opens. Zones across different islands can share a kind. */
+export type ZoneKind = 'about' | 'projects' | 'skills' | 'contact'
+
 export interface ZoneData {
-  id: 'about' | 'projects' | 'skills' | 'contact'
+  id: string
+  /** Which panel layout/content this zone opens. */
+  kind: ZoneKind
   title: string
   subtitle: string
   color: string
   position: [number, number, number]
   radius: number
+  /** Optional extra intro line shown in the panel (island-specific flavour). */
+  blurb?: string
 }
 
 // Map expanded to massive realm size: island radius ~ 68, zones positioned at outposts
 const HIJAU_ZONES: ZoneData[] = [
   {
     id: 'about',
+    kind: 'about',
     title: 'Kuil Identitas',
     subtitle: 'Muammar Rizal • Bio & Keahlian',
     color: '#3b82f6', // blue
@@ -28,6 +36,7 @@ const HIJAU_ZONES: ZoneData[] = [
   },
   {
     id: 'projects',
+    kind: 'projects',
     title: 'Aula Kreasi',
     subtitle: 'Karya 3D & Fullstack Epik',
     color: '#a855f7', // purple
@@ -36,6 +45,7 @@ const HIJAU_ZONES: ZoneData[] = [
   },
   {
     id: 'skills',
+    kind: 'skills',
     title: 'Nexus Teknologi',
     subtitle: 'Arsenal & Kompetensi Inti',
     color: '#10b981', // emerald
@@ -44,6 +54,7 @@ const HIJAU_ZONES: ZoneData[] = [
   },
   {
     id: 'contact',
+    kind: 'contact',
     title: 'Puncak Mercusuar',
     subtitle: 'Panggil & Terhubung dengan Gw',
     color: '#f59e0b', // amber
@@ -403,11 +414,84 @@ const HIJAU_HOUSES: HouseData[] = [
   },
 ]
 
-/** All content that lives on one island. */
+// ---------------------------------------------------------------------------
+// Island II — "Pulau Salju" (frozen tundra across the sea)
+// ---------------------------------------------------------------------------
+
+// Zone layout mirrors Pulau Hijau's outposts, but the content is its own:
+// a frozen archive of the same portfolio, framed by the winter island.
+const SALJU_ZONES: ZoneData[] = [
+  {
+    id: 'salju-about',
+    kind: 'about',
+    title: 'Kuil Kabut Beku',
+    subtitle: 'Jejak awal sang pembuat pulau',
+    color: '#38bdf8',
+    position: [-36, 0, -32],
+    radius: 6.5,
+    blurb: 'Versi dingin dari cerita yang sama: dari mana gw mulai, dan kenapa gw betah ngulik dunia maya sampai sekarang.',
+  },
+  {
+    id: 'salju-projects',
+    kind: 'projects',
+    title: 'Galeri Es',
+    subtitle: 'Karya yang dibekukan waktu',
+    color: '#818cf8',
+    position: [36, 0, -32],
+    radius: 7.0,
+    blurb: 'Arsip karya yang gw simpan di suhu beku — biar nggak lapuk dimakan waktu.',
+  },
+  {
+    id: 'salju-skills',
+    kind: 'skills',
+    title: 'Arsip Beku',
+    subtitle: 'Catatan ilmu dari masa ke masa',
+    color: '#2dd4bf',
+    position: [-36, 0, 36],
+    radius: 6.5,
+    blurb: 'Rak-rak ilmu yang gw pelajari sepanjang perjalanan, dibekukan biar tetap awet dan bisa gw buka kapan aja.',
+  },
+  {
+    id: 'salju-contact',
+    kind: 'contact',
+    title: 'Suar Badai',
+    subtitle: 'Kirim sinyal lewat tengah badai',
+    color: '#fbbf24',
+    position: [36, 0, 36],
+    radius: 6.5,
+    blurb: 'Kalau badai lagi reda, suar ini bakal nembak pesan lu langsung ke gw.',
+  },
+]
+
+// 16 frozen energy crystals (ids 17–32), mirroring the sunny island's layout.
+const SALJU_GEMS: GemData[] = [
+  { id: 17, x: -12, y: 1.4, z: -8, color: '#7dd3fc' },
+  { id: 18, x: 12, y: 1.4, z: -8, color: '#c4b5fd' },
+  { id: 19, x: -12, y: 1.4, z: 12, color: '#5eead4' },
+  { id: 20, x: 12, y: 1.4, z: 12, color: '#fde68a' },
+  { id: 21, x: 0, y: 2.6, z: -22, color: '#7dd3fc' },
+  { id: 22, x: 0, y: 2.6, z: 22, color: '#c4b5fd' },
+  { id: 23, x: -24, y: 1.4, z: 0, color: '#5eead4' },
+  { id: 24, x: 24, y: 1.4, z: 0, color: '#fde68a' },
+  { id: 25, x: -46, y: 1.8, z: -14, color: '#7dd3fc' },
+  { id: 26, x: 46, y: 1.8, z: -14, color: '#c4b5fd' },
+  { id: 27, x: -46, y: 1.8, z: 18, color: '#5eead4' },
+  { id: 28, x: 46, y: 1.8, z: 18, color: '#fde68a' },
+  { id: 29, x: 0, y: 3.4, z: 0, color: '#7dd3fc' },
+  { id: 30, x: -30, y: 2.2, z: -44, color: '#c4b5fd' },
+  { id: 31, x: 30, y: 2.2, z: -44, color: '#5eead4' },
+  { id: 32, x: 0, y: 2.2, z: -58, color: '#fde68a' },
+]
+
+const SALJU_HOUSES: HouseData[] = []
+
+/** All content that lives on one island (positions are island-local). */
 export interface IslandContent {
   id: string
   name: string
   subtitle: string
+  /** World-space centre of the island; content below is authored relative to it. */
+  origin: [number, number]
   zones: ZoneData[]
   gems: GemData[]
   houses: HouseData[]
@@ -415,20 +499,40 @@ export interface IslandContent {
 
 /**
  * Content grouped by island. The renderers and the world factory look a map up
- * here, while the HUD/proximity loops read the flattened aggregates below so
- * progress (gems, quests, visits) is global across every island.
+ * here (in island-local coordinates), while the HUD/proximity loops read the
+ * flattened aggregates below — already shifted into world space — so progress
+ * (gems, quests, visits) is global across every island.
  */
 export const ISLANDS: Record<string, IslandContent> = {
   hijau: {
     id: 'hijau',
     name: 'Pulau Hijau',
     subtitle: 'Pulau matahari — tempat petualangan dimulai',
+    origin: [0, 0],
     zones: HIJAU_ZONES,
     gems: HIJAU_GEMS,
     houses: HIJAU_HOUSES,
   },
+  salju: {
+    id: 'salju',
+    name: 'Pulau Salju',
+    subtitle: 'Tundra beku di seberang laut',
+    origin: [-190, 0],
+    zones: SALJU_ZONES,
+    gems: SALJU_GEMS,
+    houses: SALJU_HOUSES,
+  },
 }
 
-export const ZONES: ZoneData[] = Object.values(ISLANDS).flatMap((i) => i.zones)
-export const GEMS: GemData[] = Object.values(ISLANDS).flatMap((i) => i.gems)
-export const HOUSES: HouseData[] = Object.values(ISLANDS).flatMap((i) => i.houses)
+const ISLAND_LIST = Object.values(ISLANDS)
+
+export const ZONES: ZoneData[] = ISLAND_LIST.flatMap((i) =>
+  i.zones.map((z) => ({
+    ...z,
+    position: [z.position[0] + i.origin[0], z.position[1], z.position[2] + i.origin[1]] as [number, number, number],
+  }))
+)
+export const GEMS: GemData[] = ISLAND_LIST.flatMap((i) => i.gems.map((g) => ({ ...g, x: g.x + i.origin[0], z: g.z + i.origin[1] })))
+export const HOUSES: HouseData[] = ISLAND_LIST.flatMap((i) =>
+  i.houses.map((h) => ({ ...h, x: h.x + i.origin[0], z: h.z + i.origin[1] }))
+)

@@ -25,9 +25,52 @@ import { VILLAGERS } from './game/npcs'
 import { MODELS, type ModelKey } from './game/models'
 import { sfx } from './game/audio'
 import type { QuestState } from './components/QuestTracker'
-import { getTerrainHeight, type PlayerState } from './game/world'
+import { getTerrainHeight, getWorld, type PlayerState, type World } from './game/world'
+import { MAP_DEFS } from './game/maps'
 
 type Quality = 'high' | 'low'
+
+/** Distance from an island's centre at which its expensive content (grass,
+ * wildlife) is streamed in. Terrain, houses and decorations always stay. */
+const DETAIL_RANGE = 150
+
+/**
+ * One island of the archipelago: terrain + structures (always drawn) plus the
+ * per-pixel-heavy ground cover and wildlife, which only mount while the hero is
+ * near enough to notice them.
+ */
+const Island: React.FC<{
+  world: World
+  playerRef: React.MutableRefObject<PlayerState>
+  collectedGems: number[]
+  quality: Quality
+  onHunt: () => void
+}> = ({ world, playerRef, collectedGems, quality, onHunt }) => {
+  const [ox, oz] = world.def.origin
+  const [near, setNear] = useState(() => {
+    const p = playerRef.current.position
+    return Math.hypot(p.x - ox, p.z - oz) < DETAIL_RANGE
+  })
+
+  useFrame(() => {
+    const p = playerRef.current.position
+    const shouldBeNear = Math.hypot(p.x - ox, p.z - oz) < DETAIL_RANGE
+    if (shouldBeNear !== near) setNear(shouldBeNear)
+  })
+
+  return (
+    <>
+      <WorldEnvironment
+        world={world}
+        collectedIds={collectedGems}
+        detail={near}
+        grassCount={quality === 'low' ? 1600 : 4000}
+        flowerCount={quality === 'low' ? 300 : 850}
+      />
+      {near && <Wildlife world={world} quality={quality} playerRef={playerRef} onHunt={onHunt} />}
+    </>
+  )
+}
 
 /** Sun that keeps its shadow frustum tight around the player (cheap shadows). */
 const SunLight: React.FC<{ playerRef: React.MutableRefObject<PlayerState>; quality: Quality }> = ({
@@ -166,12 +209,17 @@ const Scene = memo(function Scene(props: SceneProps) {
       <FollowCamera playerRef={playerRef} zoomInZone={Boolean(modalZone || modalHouse || modalNpc)} cameraYawRef={cameraYawRef} />
 
       <Suspense fallback={null}>
-        <WorldEnvironment
-          collectedIds={collectedGems}
-          grassCount={quality === 'low' ? 1600 : 4000}
-          flowerCount={quality === 'low' ? 300 : 850}
-        />
-        <Wildlife quality={quality} playerRef={playerRef} onHunt={onHunt} />
+        {MAP_DEFS.map((def) => (
+          <Island
+            key={def.id}
+            world={getWorld(def.id)}
+            playerRef={playerRef}
+            collectedGems={collectedGems}
+            quality={quality}
+            onHunt={onHunt}
+          />
+        ))}
+
         <Suspense fallback={null}>
           <NpcVillagers playerRef={playerRef} quality={quality} onTalkChange={onTalkChange} />
         </Suspense>
@@ -277,10 +325,7 @@ export default function App() {
   }, [])
 
   const [quests, setQuests] = useState<QuestState>({
-    visitedAbout: false,
-    visitedProjects: false,
-    visitedSkills: false,
-    visitedContact: false,
+    visitedZones: [],
     allGemsCollected: false,
   })
 
@@ -299,13 +344,7 @@ export default function App() {
     setActiveZone((prev) => (prev?.id === zone?.id ? prev : zone))
     if (!zone) return
     sfx.zone()
-    setQuests((q) => {
-      if (zone.id === 'about' && !q.visitedAbout) return { ...q, visitedAbout: true }
-      if (zone.id === 'projects' && !q.visitedProjects) return { ...q, visitedProjects: true }
-      if (zone.id === 'skills' && !q.visitedSkills) return { ...q, visitedSkills: true }
-      if (zone.id === 'contact' && !q.visitedContact) return { ...q, visitedContact: true }
-      return q
-    })
+    setQuests((q) => (q.visitedZones.includes(zone.id) ? q : { ...q, visitedZones: [...q.visitedZones, zone.id] }))
   }, [])
 
   const onCollectGem = useCallback((id: number) => {

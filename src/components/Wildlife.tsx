@@ -1,21 +1,23 @@
 import React, { useMemo, useRef, useLayoutEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BOUNDARY_RADIUS, distanceToPath, getTerrainHeight, isWalkable, type PlayerState } from '../game/world'
+import { distanceToPath, getTerrainHeight, isWalkable, type PlayerState, type World } from '../game/world'
 import { creatureRegistry, type CreatureEntry, type CreatureType } from '../game/creatures'
 
 const MIN_RADIUS = 12
 const MAX_RADIUS = 54
 
-function randomWalkable(): [number, number] {
+/** A random standable point on `world`, returned in world coordinates. */
+function randomWalkable(world: World): [number, number] {
+  const [ox, oz] = world.def.origin
   for (let i = 0; i < 40; i++) {
     const a = Math.random() * Math.PI * 2
     const d = MIN_RADIUS + Math.random() * (MAX_RADIUS - MIN_RADIUS)
-    const x = Math.cos(a) * d
-    const z = Math.sin(a) * d
+    const x = ox + Math.cos(a) * d
+    const z = oz + Math.sin(a) * d
     if (isWalkable(x, z) && distanceToPath(x, z) > 3) return [x, z]
   }
-  return [20, 20]
+  return [ox + 20, oz + 20]
 }
 
 /** Ground animal that wanders the realm, flees when approached, and can be hunted. */
@@ -23,9 +25,10 @@ const Wanderer: React.FC<{
   id: string
   type: CreatureType
   start: [number, number]
+  world: World
   playerRef: React.MutableRefObject<PlayerState>
   onHunt: () => void
-}> = ({ id, type, start, playerRef, onHunt }) => {
+}> = ({ id, type, start, world, playerRef, onHunt }) => {
   const groupRef = useRef<THREE.Group>(null)
   const bodyRef = useRef<THREE.Group>(null)
   const legRefs = useRef<THREE.Mesh[]>([])
@@ -93,7 +96,7 @@ const Wanderer: React.FC<{
     if (!alive.current) {
       respawnT.current -= dt
       if (respawnT.current <= 0) {
-        const [nx, nz] = randomWalkable()
+        const [nx, nz] = randomWalkable(world)
         group.position.set(nx, getTerrainHeight(nx, nz), nz)
         group.scale.setScalar(1)
         group.visible = true
@@ -127,10 +130,11 @@ const Wanderer: React.FC<{
       const inv = pd > 0.001 ? 1 / pd : 0
       const fx = group.position.x + pdx * inv * 16
       const fz = group.position.z + pdz * inv * 16
-      const cd = Math.hypot(fx, fz)
-      const maxD = BOUNDARY_RADIUS - 6
+      const [ox, oz] = world.def.origin
+      const cd = Math.hypot(fx - ox, fz - oz)
+      const maxD = world.def.boundaryRadius - 6
       const k = cd > maxD ? maxD / cd : 1
-      target.current.set(fx * k, 0, fz * k)
+      target.current.set(ox + (fx - ox) * k, 0, oz + (fz - oz) * k)
       mode.current = 'move'
       timer.current = 1.2
       speed = baseSpeed.current * 1.9 + 2
@@ -146,7 +150,7 @@ const Wanderer: React.FC<{
       })
       group.position.y = getTerrainHeight(group.position.x, group.position.z)
       if (timer.current <= 0) {
-        const [nx, nz] = randomWalkable()
+        const [nx, nz] = randomWalkable(world)
         target.current.set(nx, 0, nz)
         mode.current = 'move'
         timer.current = 3 + Math.random() * 6
@@ -458,10 +462,11 @@ const PlantBatch: React.FC<{ geometry: THREE.BufferGeometry; material: THREE.Mat
 }
 
 export const Wildlife: React.FC<{
+  world: World
   quality?: 'high' | 'low'
   playerRef: React.MutableRefObject<PlayerState>
   onHunt: () => void
-}> = ({ quality = 'high', playerRef, onHunt }) => {
+}> = ({ world, quality = 'high', playerRef, onHunt }) => {
   const low = quality === 'low'
 
   const creatures = useMemo(() => {
@@ -469,43 +474,44 @@ export const Wildlife: React.FC<{
     const list: Array<{ id: string; type: CreatureType; start: [number, number] }> = []
     ;(['deer', 'sheep', 'rabbit'] as CreatureType[]).forEach((type) => {
       for (let i = 0; i < counts[type]; i++) {
-        list.push({ id: `${type}-${i}`, type, start: randomWalkable() })
+        list.push({ id: `${world.def.id}-${type}-${i}`, type, start: randomWalkable(world) })
       }
     })
     return list
-  }, [low])
+  }, [low, world])
 
   const birds = useMemo(() => {
     const n = low ? 3 : 5
+    const [ox, oz] = world.def.origin
     return Array.from({ length: n }, (_, i) => ({
-      id: `bird-${i}`,
-      start: [Math.cos(i) * 30, 0, Math.sin(i * 1.7) * 30] as [number, number, number],
+      id: `${world.def.id}-bird-${i}`,
+      start: [ox + Math.cos(i) * 30, 0, oz + Math.sin(i * 1.7) * 30] as [number, number, number],
       radius: 10 + ((i * 7) % 22),
       height: 24 + ((i * 5) % 14),
       speed: 0.25 + ((i * 3) % 5) * 0.07,
     }))
-  }, [low])
+  }, [low, world])
 
   const butterflies = useMemo(() => {
     const n = low ? 4 : 6
     const colors = ['#f472b6', '#fbbf24', '#38bdf8', '#a78bfa', '#34d399']
     return Array.from({ length: n }, (_, i) => {
-      const [x, z] = randomWalkable()
+      const [x, z] = randomWalkable(world)
       return {
-        id: i,
+        id: `${world.def.id}-bfly-${i}`,
         center: [x, getTerrainHeight(x, z), z] as [number, number, number],
         color: colors[i % colors.length],
         phase: Math.random() * 10,
       }
     })
-  }, [low])
+  }, [low, world])
 
   const { mushrooms, blossoms } = useMemo(() => {
     const n = low ? 12 : 24
     const mushrooms: Plant[] = []
     const blossoms: Plant[] = []
     for (let i = 0; i < n; i++) {
-      const [x, z] = randomWalkable()
+      const [x, z] = randomWalkable(world)
       const plant: Plant = {
         x,
         y: getTerrainHeight(x, z),
@@ -517,7 +523,7 @@ export const Wildlife: React.FC<{
       else mushrooms.push(plant)
     }
     return { mushrooms, blossoms }
-  }, [low])
+  }, [low, world])
 
   useFrame((state) => {
     const t = state.clock.elapsedTime
@@ -529,7 +535,7 @@ export const Wildlife: React.FC<{
   return (
     <group>
       {creatures.map((c) => (
-        <Wanderer key={c.id} id={c.id} type={c.type} start={c.start} playerRef={playerRef} onHunt={onHunt} />
+        <Wanderer key={c.id} id={c.id} type={c.type} start={c.start} world={world} playerRef={playerRef} onHunt={onHunt} />
       ))}
 
       {birds.map((b) => (

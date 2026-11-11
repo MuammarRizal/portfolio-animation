@@ -46,6 +46,14 @@ export interface World {
   def: WorldMapDef
   decorations: Decoration[]
   colliders: Collider[]
+  /** Terrain height at an island-local point. */
+  terrainAt(x: number, z: number): number
+  /** Distance from an island-local point to the nearest roadway. */
+  distanceToPath(x: number, z: number): number
+  /** May ground cover (grass, flowers) grow at an island-local point? */
+  groundCoverAllowed(x: number, z: number): boolean
+  /** Forbidden circles used by the ground-cover test. */
+  groundCoverForbidden: Spot[]
 }
 
 function smoothstep(t: number): number {
@@ -215,9 +223,36 @@ function buildColliders(def: WorldMapDef, decorations: Decoration[]): Collider[]
   return cols
 }
 
+/** Forbidden circles for one island's ground cover (plaza, outposts, houses). */
+function groundCoverForbidden(def: WorldMapDef): Spot[] {
+  return [
+    { x: 0, z: 0, r: 7 },
+    ...def.zones.map((z) => ({ x: z.position[0], z: z.position[2], r: 9 })),
+    ...def.houses.map((h) => ({ x: h.x, z: h.z, r: 5.5 })),
+    ...def.extraForbidden,
+  ]
+}
+
+function groundCoverAllowed(def: WorldMapDef, forbidden: Spot[], x: number, z: number): boolean {
+  if (localDistanceToPath(def, x, z) < 2.6) return false
+  for (const f of forbidden) {
+    if (Math.hypot(x - f.x, z - f.z) < f.r) return false
+  }
+  return true
+}
+
 function buildWorld(def: WorldMapDef): World {
   const decorations = buildDecorations(def)
-  return { def, decorations, colliders: buildColliders(def, decorations) }
+  const forbidden = groundCoverForbidden(def)
+  return {
+    def,
+    decorations,
+    colliders: buildColliders(def, decorations),
+    terrainAt: (x, z) => localTerrainHeight(def, x, z),
+    distanceToPath: (x, z) => localDistanceToPath(def, x, z),
+    groundCoverAllowed: (x, z) => groundCoverAllowed(def, forbidden, x, z),
+    groundCoverForbidden: forbidden,
+  }
 }
 
 const WORLDS: World[] = MAP_DEFS.map(buildWorld)
@@ -235,7 +270,7 @@ export const WORLD_DEFS: WorldMapDef[] = MAP_DEFS
  * catchment so the returned island is also used for the shallow ring of water
  * just off its coast (boats near shore still read sensible heights).
  */
-function nearestWorld(x: number, z: number, margin = 40): World | null {
+function nearestWorld(x: number, z: number, margin = 24): World | null {
   let best: World | null = null
   let bestD = Infinity
   for (const w of WORLDS) {
@@ -271,32 +306,21 @@ function nearestWorldAlways(x: number, z: number): World {
 export function getTerrainHeight(x: number, z: number): number {
   const w = nearestWorld(x, z)
   if (!w) return SEA_LEVEL
-  return localTerrainHeight(w.def, x - w.def.origin[0], z - w.def.origin[1])
+  return w.terrainAt(x - w.def.origin[0], z - w.def.origin[1])
 }
 
 /** Distance from a world point to the nearest ancient roadway (Infinity at sea). */
 export function distanceToPath(x: number, z: number): number {
   const w = nearestWorld(x, z)
   if (!w) return Infinity
-  return localDistanceToPath(w.def, x - w.def.origin[0], z - w.def.origin[1])
+  return w.distanceToPath(x - w.def.origin[0], z - w.def.origin[1])
 }
 
 /** Can grass / flowers grow at this world XZ? (clear of buildings + roadways) */
 export function isGroundCoverAllowed(x: number, z: number): boolean {
   const w = nearestWorld(x, z)
   if (!w) return false
-  const lx = x - w.def.origin[0]
-  const lz = z - w.def.origin[1]
-  if (localDistanceToPath(w.def, lx, lz) < 2.6) return false
-  const forbidden: Spot[] = [
-    { x: 0, z: 0, r: 7 },
-    ...w.def.zones.map((zn) => ({ x: zn.position[0], z: zn.position[2], r: 9 })),
-    ...w.def.houses.map((h) => ({ x: h.x, z: h.z, r: 5.5 })),
-  ]
-  for (const f of forbidden) {
-    if (Math.hypot(lx - f.x, lz - f.z) < f.r) return false
-  }
-  return true
+  return w.groundCoverAllowed(x - w.def.origin[0], z - w.def.origin[1])
 }
 
 /** Can a wandering creature stand here? (inside boundary, not on a mountain, not in a house) */
