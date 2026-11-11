@@ -44,7 +44,7 @@ function homeAt(zoneId: string | null, dx: number, dz: number): [number, number]
   return [x + dx, z + dz]
 }
 
-export const VILLAGERS: VillagerDef[] = [
+export const HIJAU_VILLAGERS: VillagerDef[] = [
   {
     id: 'npc-bijak',
     name: 'Pak Bijak',
@@ -118,3 +118,11 @@ export const VILLAGERS: VillagerDef[] = [
     accent: '#a3e635',
   },
 ]
+
+/** Villagers grouped by island; the registry stays flat for the radar. */
+export const ISLAND_VILLAGERS: Record<string, VillagerDef[]> = {
+  hijau: HIJAU_VILLAGERS,
+}
+
+/** Every villager across every island (the HUD counts these). */
+export const VILLAGERS: VillagerDef[] = Object.values(ISLAND_VILLAGERS).flat()

@@ -17,7 +17,7 @@ export interface ZoneData {
 }
 
 // Map expanded to massive realm size: island radius ~ 68, zones positioned at outposts
-export const ZONES: ZoneData[] = [
+const HIJAU_ZONES: ZoneData[] = [
   {
     id: 'about',
     title: 'Kuil Identitas',
@@ -88,7 +88,7 @@ export interface GemData {
 }
 
 // 16 Energy Gems scattered across the massive realm (some require jumping)
-export const GEMS: GemData[] = [
+const HIJAU_GEMS: GemData[] = [
   { id: 1, x: -12, y: 1.4, z: -8, color: '#38bdf8' },
   { id: 2, x: 12, y: 1.4, z: -8, color: '#c084fc' },
   { id: 3, x: -12, y: 1.4, z: 12, color: '#34d399' },
@@ -160,7 +160,7 @@ export interface HouseData {
 
 // The village: 9 houses split across 3 hamlets (north, south, east of the spawn
 // plaza). Residential flavour mixed with portfolio doors — knock at each one.
-export const HOUSES: HouseData[] = [
+const HIJAU_HOUSES: HouseData[] = [
   // ---- Dusun Utara (0, -38) ----
   {
     id: 'bio',
@@ -402,3 +402,33 @@ export const HOUSES: HouseData[] = [
     ],
   },
 ]
+
+/** All content that lives on one island. */
+export interface IslandContent {
+  id: string
+  name: string
+  subtitle: string
+  zones: ZoneData[]
+  gems: GemData[]
+  houses: HouseData[]
+}
+
+/**
+ * Content grouped by island. The renderers and the world factory look a map up
+ * here, while the HUD/proximity loops read the flattened aggregates below so
+ * progress (gems, quests, visits) is global across every island.
+ */
+export const ISLANDS: Record<string, IslandContent> = {
+  hijau: {
+    id: 'hijau',
+    name: 'Pulau Hijau',
+    subtitle: 'Pulau matahari — tempat petualangan dimulai',
+    zones: HIJAU_ZONES,
+    gems: HIJAU_GEMS,
+    houses: HIJAU_HOUSES,
+  },
+}
+
+export const ZONES: ZoneData[] = Object.values(ISLANDS).flatMap((i) => i.zones)
+export const GEMS: GemData[] = Object.values(ISLANDS).flatMap((i) => i.gems)
+export const HOUSES: HouseData[] = Object.values(ISLANDS).flatMap((i) => i.houses)
