@@ -172,18 +172,6 @@ const StaticLayer = React.memo(function StaticLayer({
                 />
               </g>
             ))}
-
-            {/* visible stone ring */}
-            <circle
-              cx={px(ox)}
-              cy={py(oz)}
-              r={def.boundaryRadius * scale}
-              fill="none"
-              stroke="#facc15"
-              strokeWidth={detailed ? 1.6 : 1.2}
-              strokeDasharray={detailed ? '4 3' : undefined}
-              opacity={0.9}
-            />
           </g>
         )
       })}

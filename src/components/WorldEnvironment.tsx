@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { type HousePalette, type HouseRoof } from '../data/portfolio'
 import { GrassField } from './GrassField'
 import type { BiomePalette, DockDef } from '../game/maps'
-import { HOUSE_D, HOUSE_H, HOUSE_W, type Decoration, type World } from '../game/world'
+import { HOUSE_D, HOUSE_H, HOUSE_W, type World } from '../game/world'
 
 interface WorldEnvironmentProps {
   world: World
@@ -71,11 +71,6 @@ const G = {
   })(),
   lanternOrb: (() => {
     const g = new THREE.SphereGeometry(0.22, 10, 10)
-    g.translate(0, 1.7, 0)
-    return g
-  })(),
-  stone: (() => {
-    const g = new THREE.BoxGeometry(1.25, 3.4, 0.8)
     g.translate(0, 1.7, 0)
     return g
   })(),
@@ -174,7 +169,6 @@ function buildMaterials(p: BiomePalette) {
     }),
     lanternPost: new THREE.MeshStandardMaterial({ color: p.rock, roughness: 0.7 }),
     lanternOrb: new THREE.MeshStandardMaterial({ color: '#fcd34d', emissive: '#f59e0b', emissiveIntensity: 1.4 }),
-    stone: new THREE.MeshStandardMaterial({ color: p.rock, roughness: 0.9, flatShading: true }),
     archPillar: new THREE.MeshStandardMaterial({ color: p.rock, roughness: 0.85, flatShading: true }),
     archLintel: new THREE.MeshStandardMaterial({ color: p.cliff, roughness: 0.8, flatShading: true }),
     archBanner: new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0ea5e9', emissiveIntensity: 1 }),
@@ -217,7 +211,7 @@ const DockPier: React.FC<{ dock: DockDef; world: World }> = ({ dock, world }) =>
         return (
           <group key={i} position={[x, y, 0]}>
             <mesh castShadow receiveShadow>
-              <boxGeometry args={[1.7, 0.2, 2.1]} />
+              <boxGeometry args={[2.65, 0.2, 2.1]} />
               <primitive object={PIER_MAT} attach="material" />
             </mesh>
             {i % 2 === 0 &&
@@ -230,6 +224,23 @@ const DockPier: React.FC<{ dock: DockDef; world: World }> = ({ dock, world }) =>
           </group>
         )
       })}
+      {/* boarding point: step block + bollards + a mooring line to the hull,
+          so the way onto the moored ferry reads at a glance */}
+      <mesh castShadow receiveShadow position={[LEN + 0.55, yAt(SEG - 1) + 0.02, 0]}>
+        <boxGeometry args={[1.0, 0.16, 1.8]} />
+        <primitive object={PIER_MAT} attach="material" />
+      </mesh>
+      {[-0.72, 0.72].map((pz) => (
+        <mesh key={`bollard${pz}`} position={[LEN - 0.2, yAt(SEG - 1) + 0.5, pz]}>
+          <cylinderGeometry args={[0.11, 0.14, 1.0, 6]} />
+          <primitive object={PIER_POST_MAT} attach="material" />
+        </mesh>
+      ))}
+      <mesh position={[LEN + 1.1, yAt(SEG - 1) + 0.55, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.035, 0.035, 3.0, 5]} />
+        <meshStandardMaterial color="#d6c39a" roughness={0.9} />
+      </mesh>
+
       {/* mooring post + lantern at the far end */}
       <mesh position={[LEN + 0.4, yAt(SEG - 1) + 1.1, 0]}>
         <cylinderGeometry args={[0.12, 0.15, 2.4, 6]} />
@@ -326,7 +337,6 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
   const [ox, oz] = def.origin
 
   const terrainRadius = def.terrainRadius
-  const boundaryRadius = def.boundaryRadius
   const terrainSize = terrainRadius * 2 + 30
 
   const M = useMemo(() => buildMaterials(palette), [palette])
@@ -408,26 +418,6 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
     [houseItems]
   )
 
-  // Standing-stone ring marking the walkable boundary
-  const boundaryStones = useMemo<Decoration[]>(
-    () =>
-      Array.from({ length: 46 }, (_, i) => {
-        const a = (i / 46) * Math.PI * 2
-        const r = boundaryRadius + 1.4
-        const x = Math.cos(a) * r
-        const z = Math.sin(a) * r
-        return {
-          type: 'rock',
-          x,
-          y: world.terrainAt(x, z),
-          z,
-          scale: 1.15 + ((i * 29) % 7) / 12,
-          rot: a + 0.25,
-        }
-      }),
-    [boundaryRadius, world]
-  )
-
   // Terrain surface: displaced plane, vertex-coloured grass / road / rock / snow,
   // edges dropped into cliffs so the island reads as floating.
   const terrainGeo = useMemo(() => {
@@ -488,27 +478,10 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
         <meshStandardMaterial color={palette.cliff} roughness={0.95} flatShading />
       </mesh>
 
-      {/* 2. BOUNDARY: standing-stone ring + translucent energy wall */}
-      <InstancedBatch geometry={G.stone} material={M.stone} items={boundaryStones} castShadow={false} />
-      <mesh position={[0, 6, 0]}>
-        <cylinderGeometry args={[boundaryRadius, boundaryRadius, 12, 72, 1, true]} />
-        <meshBasicMaterial
-          color="#7dd3fc"
-          transparent
-          opacity={0.07}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-      <mesh position={[0, 12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[boundaryRadius - 0.35, boundaryRadius + 0.35, 96]} />
-        <meshBasicMaterial color="#38bdf8" transparent opacity={0.35} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* 3. WIND-SWEPT GRASS (only drawn when the island is close enough) */}
+      {/* 2. WIND-SWEPT GRASS (only drawn when the island is close enough) */}
       {detail && <GrassField world={world} count={grassCount} flowerCount={flowerCount} />}
 
-      {/* 4. CENTRAL SPAWN SANCTUARY */}
+      {/* 3. CENTRAL SPAWN SANCTUARY */}
       <mesh receiveShadow position={[0, 0.05, 0]}>
         <circleGeometry args={[6.5, 40]} />
         <meshStandardMaterial color={palette.sand} roughness={0.85} />
@@ -522,7 +495,7 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
         <meshBasicMaterial color="#38bdf8" transparent opacity={0.5} />
       </mesh>
 
-      {/* 5. NORSE-STYLE STONE ARCHWAYS ALONG THE ROADS (instanced: 4 batches, not 4 meshes per arch) */}
+      {/* 4. NORSE-STYLE STONE ARCHWAYS ALONG THE ROADS (instanced: 4 batches, not 4 meshes per arch) */}
       <InstancedBatch geometry={G.archPillarL} material={M.archPillar} items={archItems} />
       <InstancedBatch geometry={G.archPillarR} material={M.archPillar} items={archItems} />
       <InstancedBatch geometry={G.archLintel} material={M.archLintel} items={archItems} />
@@ -559,7 +532,7 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
         </>
       )}
 
-      {/* 6. STEPPING-STONE ELEVATIONS */}
+      {/* 5. STEPPING-STONE ELEVATIONS */}
       <group position={[0, world.terrainAt(0, -22), -22]}>
         <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
           <cylinderGeometry args={[2.0, 2.3, 1.0, 8]} />
@@ -581,7 +554,7 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
         </mesh>
       </group>
 
-      {/* 6b. DOCKS — timber piers running down into the water */}
+      {/* 6. DOCKS — timber piers running down into the water */}
       {def.docks.map((d) => (
         <DockPier key={d.id} dock={d} world={world} />
       ))}

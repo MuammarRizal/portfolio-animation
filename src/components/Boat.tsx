@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { DOCKS, type Dock, type PlayerState } from '../game/world'
+import { DOCKS, pierAt, type Dock, type PlayerState } from '../game/world'
 import { waveHeight } from '../game/ocean'
 import { WorldLabel } from './WorldLabel'
 
@@ -14,24 +14,55 @@ export interface DockPrompt {
 
 /** Seconds the ferry takes to cross between the two piers. */
 const RIDE_TIME = 3.2
-/** Stand within this of a pier's boarding spot to be offered a ride. */
-const BOARD_DISTANCE = 9
 /** Height of the deck the passenger stands on, above the waterline. */
 const DECK_Y = 0.78
-/** Aft offset of the passenger so they clear the mast. */
-const DECK_Z = -0.45
+/** Aft offset of the passenger so they clear the wheelhouse. */
+const DECK_Z = -0.55
+/** Local Z of the stern — where the hull ends and the gangplank hinges. */
+const STERN_Z = -1.8
 
-const HULL_MAT = new THREE.MeshStandardMaterial({ color: '#8a5a34', roughness: 0.85, flatShading: true })
-const TRIM_MAT = new THREE.MeshStandardMaterial({ color: '#c9a06a', roughness: 0.8, flatShading: true })
-const SAIL_MAT = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.9, side: THREE.DoubleSide })
-const MAST_MAT = new THREE.MeshStandardMaterial({ color: '#5a3b22', roughness: 0.85 })
+// ---------------------------------------------------------------------------
+// Paint & parts (shared meshes, built once)
+// ---------------------------------------------------------------------------
+
+const HULL_MAT = new THREE.MeshStandardMaterial({ color: '#123a63', roughness: 0.8, flatShading: true })
+const BOOT_MAT = new THREE.MeshStandardMaterial({ color: '#c8442f', roughness: 0.75 })
+const SIDE_MAT = new THREE.MeshStandardMaterial({ color: '#eef2f7', roughness: 0.65, flatShading: true })
+const DECK_MAT = new THREE.MeshStandardMaterial({ color: '#c9a06a', roughness: 0.85, flatShading: true })
+const TRIM_MAT = new THREE.MeshStandardMaterial({ color: '#8a5a34', roughness: 0.8, flatShading: true })
+const CABIN_MAT = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.6 })
+const GLASS_MAT = new THREE.MeshStandardMaterial({
+  color: '#12324a',
+  emissive: '#2d6d99',
+  emissiveIntensity: 0.35,
+  roughness: 0.25,
+})
+const FUNNEL_MAT = new THREE.MeshStandardMaterial({ color: '#0ea5e9', roughness: 0.6 })
+const FUNNEL_BAND_MAT = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.6 })
+const FUNNEL_TOP_MAT = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.8 })
+const STEEL_MAT = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.45, metalness: 0.35 })
+const LIFE_MAT = new THREE.MeshStandardMaterial({ color: '#ef4444', roughness: 0.65 })
 const FLAG_MAT = new THREE.MeshStandardMaterial({ color: '#0ea5e9', roughness: 0.7, side: THREE.DoubleSide })
+const LAMP_MAT = new THREE.MeshStandardMaterial({ color: '#fde68a', emissive: '#f59e0b', emissiveIntensity: 1.6 })
 const FOAM_MAT = new THREE.MeshBasicMaterial({
   color: '#eaf7ff',
   transparent: true,
   opacity: 0,
   depthWrite: false,
 })
+
+/**
+ * Square-based prow, aligned flush with the box hull: a 4-sided cone rotated so
+ * its base sits across the hull and its point drives forward (+Z).
+ */
+const BOW_GEO = (() => {
+  const g = new THREE.ConeGeometry(1.27, 1.9, 4)
+  g.rotateY(Math.PI / 4)
+  g.rotateX(Math.PI / 2)
+  g.scale(1, 0.5, 1)
+  g.translate(0, 0.34, 2.55)
+  return g
+})()
 
 /** Live ferry state — mutated per frame, never React state. */
 interface FerryState {
@@ -65,41 +96,138 @@ function dockIsland(dock: Dock): string {
   return dock.name.replace(/^Dermaga\s+/, '')
 }
 
-/** A little low-poly ferry, built facing +Z. */
+/** Along-pier positions the side railings are posted at. */
+const RAIL_POSTS = [-1.6, -1.2, -0.8, -0.4, 0, 0.4]
+
+/** A low-poly motor ferry, built facing +Z: navy hull, white wheelhouse, funnel. */
 const BoatHull: React.FC = () => (
   <group>
-    <mesh castShadow position={[0, 0.34, 0]}>
-      <boxGeometry args={[1.5, 0.68, 3.0]} />
+    {/* ---- hull below the waterline + prow ---- */}
+    <mesh castShadow position={[0, -0.28, 0]}>
+      <boxGeometry args={[1.7, 0.5, 3.4]} />
       <primitive object={HULL_MAT} attach="material" />
     </mesh>
-    <mesh castShadow position={[0, 0.34, 1.72]} rotation={[Math.PI / 2, 0, 0]}>
-      <coneGeometry args={[0.75, 1.4, 4]} />
+    <mesh geometry={BOW_GEO}>
       <primitive object={HULL_MAT} attach="material" />
     </mesh>
+
+    {/* ---- red boot stripe at the waterline ---- */}
+    <mesh position={[0, 0.03, 0]}>
+      <boxGeometry args={[1.79, 0.14, 3.5]} />
+      <primitive object={BOOT_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- freeboard / bulwark ---- */}
+    <mesh castShadow position={[0, 0.42, 0]}>
+      <boxGeometry args={[1.8, 0.5, 3.6]} />
+      <primitive object={SIDE_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- deck ---- */}
     <mesh position={[0, 0.72, 0]}>
-      <boxGeometry args={[1.3, 0.1, 2.7]} />
+      <boxGeometry args={[1.62, 0.12, 3.4]} />
+      <primitive object={DECK_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- gunwale caps ---- */}
+    <mesh position={[-0.86, 0.7, 0]}>
+      <boxGeometry args={[0.16, 0.1, 3.62]} />
       <primitive object={TRIM_MAT} attach="material" />
     </mesh>
-    {/* gunwale rails */}
-    <mesh position={[-0.76, 0.62, 0]}>
-      <boxGeometry args={[0.12, 0.14, 3.1]} />
+    <mesh position={[0.86, 0.7, 0]}>
+      <boxGeometry args={[0.16, 0.1, 3.62]} />
       <primitive object={TRIM_MAT} attach="material" />
     </mesh>
-    <mesh position={[0.76, 0.62, 0]}>
-      <boxGeometry args={[0.12, 0.14, 3.1]} />
+
+    {/* ---- transom (flat stern) ---- */}
+    <mesh position={[0, 0.34, -1.87]}>
+      <boxGeometry args={[1.8, 0.7, 0.14]} />
+      <primitive object={SIDE_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- wheelhouse near the bow ---- */}
+    <mesh castShadow position={[0, 1.2, 1.0]}>
+      <boxGeometry args={[1.3, 0.9, 1.0]} />
+      <primitive object={CABIN_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0, 1.7, 1.0]}>
+      <boxGeometry args={[1.5, 0.12, 1.16]} />
+      <primitive object={SIDE_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0, 1.28, 1.51]}>
+      <boxGeometry args={[0.95, 0.34, 0.06]} />
+      <primitive object={GLASS_MAT} attach="material" />
+    </mesh>
+    <mesh position={[-0.66, 1.28, 1.0]}>
+      <boxGeometry args={[0.06, 0.34, 0.72]} />
+      <primitive object={GLASS_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0.66, 1.28, 1.0]}>
+      <boxGeometry args={[0.06, 0.34, 0.72]} />
+      <primitive object={GLASS_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0, 1.95, 1.0]}>
+      <cylinderGeometry args={[0.03, 0.03, 0.44, 6]} />
+      <primitive object={STEEL_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0, 2.2, 1.0]}>
+      <sphereGeometry args={[0.09, 8, 8]} />
+      <primitive object={LAMP_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- funnel astern of the wheelhouse ---- */}
+    <mesh castShadow position={[0, 1.25, 0.25]}>
+      <cylinderGeometry args={[0.15, 0.18, 0.8, 8]} />
+      <primitive object={FUNNEL_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0, 1.42, 0.25]}>
+      <cylinderGeometry args={[0.17, 0.17, 0.14, 8]} />
+      <primitive object={FUNNEL_BAND_MAT} attach="material" />
+    </mesh>
+    <mesh position={[0, 1.66, 0.25]}>
+      <cylinderGeometry args={[0.18, 0.17, 0.08, 8]} />
+      <primitive object={FUNNEL_TOP_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- railings down both sides ---- */}
+    {[-1, 1].map((side) => (
+      <group key={side}>
+        {RAIL_POSTS.map((z) => (
+          <mesh key={z} position={[side * 0.83, 0.95, z]}>
+            <boxGeometry args={[0.05, 0.36, 0.05]} />
+            <primitive object={STEEL_MAT} attach="material" />
+          </mesh>
+        ))}
+        <mesh position={[side * 0.83, 1.13, -0.6]}>
+          <boxGeometry args={[0.06, 0.06, 2.2]} />
+          <primitive object={STEEL_MAT} attach="material" />
+        </mesh>
+      </group>
+    ))}
+    <mesh position={[0, 1.13, -1.7]}>
+      <boxGeometry args={[1.7, 0.06, 0.06]} />
+      <primitive object={STEEL_MAT} attach="material" />
+    </mesh>
+
+    {/* ---- passenger bench on the open aft deck ---- */}
+    <mesh position={[0, 0.9, -1.35]}>
+      <boxGeometry args={[1.3, 0.2, 0.42]} />
       <primitive object={TRIM_MAT} attach="material" />
     </mesh>
-    {/* mast + sail + pennant */}
-    <mesh castShadow position={[0, 1.7, 0.1]}>
-      <cylinderGeometry args={[0.06, 0.08, 2.1, 6]} />
-      <primitive object={MAST_MAT} attach="material" />
+
+    {/* ---- life ring on the wheelhouse ---- */}
+    <mesh position={[-0.72, 1.25, 0.95]} rotation={[0, Math.PI / 2, 0]}>
+      <torusGeometry args={[0.17, 0.05, 6, 12]} />
+      <primitive object={LIFE_MAT} attach="material" />
     </mesh>
-    <mesh position={[0, 1.85, -0.06]} rotation={[0, Math.PI / 2, 0]}>
-      <planeGeometry args={[1.7, 1.6]} />
-      <primitive object={SAIL_MAT} attach="material" />
+
+    {/* ---- mast + pennant astern ---- */}
+    <mesh position={[0, 1.75, -1.7]}>
+      <cylinderGeometry args={[0.04, 0.06, 1.9, 6]} />
+      <primitive object={TRIM_MAT} attach="material" />
     </mesh>
-    <mesh position={[0, 2.72, 0.6]} rotation={[0, Math.PI / 2, 0]}>
-      <planeGeometry args={[0.7, 0.4]} />
+    <mesh position={[0, 2.35, -1.62]} rotation={[0, Math.PI / 2, 0]}>
+      <planeGeometry args={[0.75, 0.45]} />
       <primitive object={FLAG_MAT} attach="material" />
     </mesh>
   </group>
@@ -107,15 +235,15 @@ const BoatHull: React.FC = () => (
 
 /** Foam V trailing the hull; fades in and out with the crossing. */
 const Wake: React.FC<{ mat: THREE.Material }> = ({ mat }) => (
-  <group position={[0, 0.06, -1.7]}>
+  <group position={[0, 0.06, -2.6]}>
     {[-1, 1].map((side) => (
-      <mesh key={side} position={[side * 0.55, 0, -1.5]} rotation={[-Math.PI / 2, 0, side * 0.5]}>
-        <planeGeometry args={[0.5, 4.2]} />
+      <mesh key={side} position={[side * 0.6, 0, -1.4]} rotation={[-Math.PI / 2, 0, side * 0.5]}>
+        <planeGeometry args={[0.5, 4.0]} />
         <primitive object={mat} attach="material" />
       </mesh>
     ))}
-    <mesh position={[0, 0, -2.4]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[1.1, 3.2]} />
+    <mesh position={[0, 0, -2.2]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[1.2, 3.0]} />
       <primitive object={mat} attach="material" />
     </mesh>
   </group>
@@ -133,13 +261,14 @@ interface BoatProps {
 }
 
 /**
- * The archipelago's ferry. It no longer answers the helm: step onto a pier,
- * press [E] and it steams itself to the other island's pier, then lets you off.
- * The hull rides the real Gerstner surface (`waveHeight`) so it sits *in* the
- * water, and while sailing the hero stands on the deck (see `Character` riding).
+ * The archipelago's ferry. It does not answer the helm: walk down a pier, press
+ * [E] and it steams itself to the other island's pier. The hull rides the real
+ * Gerstner surface (`waveHeight`) so it sits *in* the water, a hinged gangplank
+ * rests on the pier while moored, and the passenger rides the open aft deck.
  */
 export const Boat: React.FC<BoatProps> = ({ riding, quality, playerRef, onPromptChange, onArrive }) => {
   const groupRef = useRef<THREE.Group>(null!)
+  const plankRef = useRef<THREE.Group>(null!)
   const promptId = useRef<string | null>(null)
   // Brief grace period after tying up so the "board" prompt does not reappear
   // the instant the passenger steps off.
@@ -220,6 +349,12 @@ export const Boat: React.FC<BoatProps> = ({ riding, quality, playerRef, onPrompt
       g.rotation.set(Math.sin(t * 1.1) * 0.035, f.yaw, Math.sin(t * 0.85) * 0.045)
     }
 
+    // The gangplank lies on the pier when moored and swings up under way.
+    if (plankRef.current) {
+      const target = f.sailing ? 1.2 : 0.06
+      plankRef.current.rotation.x = THREE.MathUtils.lerp(plankRef.current.rotation.x, target, dt * 4)
+    }
+
     // Braking foam scales with how fast we are moving through the crossing.
     const speed = f.sailing ? Math.sin(Math.PI * f.travel) : 0
     FOAM_MAT.opacity = speed * 0.6
@@ -235,12 +370,13 @@ export const Boat: React.FC<BoatProps> = ({ riding, quality, playerRef, onPrompt
       playerRef.current.airborne = false
     }
 
-    // Offer a ride whenever the hero is standing at the pier the ferry is at.
+    // Offer a ride whenever the hero is standing on the pier the ferry is at
+    // (the gangplank counts — it is part of that pier's footprint).
     if (cooldown.current > 0) cooldown.current = Math.max(0, cooldown.current - dt)
     if (!riding && cooldown.current <= 0) {
       const p = playerRef.current.position
-      const near = Math.hypot(p.x - f.from.x, p.z - f.from.z) < BOARD_DISTANCE
-      report(near ? { kind: 'board', dock: f.from } : null)
+      const atPier = pierAt(p.x, p.z)?.id === f.from.id
+      report(atPier ? { kind: 'board', dock: f.from } : null)
     } else {
       report(null)
     }
@@ -249,9 +385,26 @@ export const Boat: React.FC<BoatProps> = ({ riding, quality, playerRef, onPrompt
   return (
     <group ref={groupRef} position={[DOCKS[0].boatX, 0, DOCKS[0].boatZ]}>
       <BoatHull />
+
+      {/* hinged boarding gangplank over the stern */}
+      <group ref={plankRef} position={[0, DECK_Y, STERN_Z]}>
+        <mesh castShadow position={[0, -0.05, -1.3]}>
+          <boxGeometry args={[1.6, 0.1, 2.6]} />
+          <primitive object={DECK_MAT} attach="material" />
+        </mesh>
+        <mesh position={[-0.78, 0.14, -1.3]}>
+          <boxGeometry args={[0.05, 0.05, 2.4]} />
+          <primitive object={STEEL_MAT} attach="material" />
+        </mesh>
+        <mesh position={[0.78, 0.14, -1.3]}>
+          <boxGeometry args={[0.05, 0.05, 2.4]} />
+          <primitive object={STEEL_MAT} attach="material" />
+        </mesh>
+      </group>
+
       <Wake mat={FOAM_MAT} />
       {!riding && (
-        <Billboard position={[0, 3.4, 0]}>
+        <Billboard position={[0, 3.5, 0]}>
           <WorldLabel title="Kapal Feri" subtitle={`→ ${destIsland}`} color="#7dd3fc" width={5.2} height={1.95} />
         </Billboard>
       )}

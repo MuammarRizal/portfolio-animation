@@ -14,6 +14,7 @@ import {
   type Collider,
   type Decoration,
   type DecorationType,
+  type DockDef,
   type Hill,
   type Spot,
   type WorldMapDef,
@@ -324,11 +325,85 @@ function nearestWorldAlways(x: number, z: number): World {
 }
 
 // ---------------------------------------------------------------------------
+// Piers — walkable boardwalks that carry the player out over the water
+// ---------------------------------------------------------------------------
+
+/** Plank run from the beach to the pier head (mirrors `DockPier`'s LEN). */
+const PIER_LEN = 15
+/** Half-width of the plank run the walker is kept on. */
+const PIER_HALF_W = 0.85
+/** How far off the planks a step still snaps the walker back onto them. */
+const PIER_CATCH = 2.5
+/** Height of the plank top at the seaward end. */
+const PIER_HEAD_Y = -29.35
+/** Gangplank bridging the pier head and the moored hull. */
+const GANGPLANK_LEN = 2.2
+/** Slop past the gangplank end so a float rounding error never drops the
+ * walker off the pier (which would snap them back to the beach clamp). */
+const PIER_END_MARGIN = 0.5
+/** Tolerance on the plank edges — the clamp parks the walker exactly on the
+ * bound, and re-projecting that can land a hair outside it. */
+const PIER_SLOP = 0.08
+/** Resting height of the ferry deck the gangplank lands on. */
+const FERRY_DECK_Y = SEA_LEVEL + 0.83
+
+/** A world point resolved into one pier's local frame. */
+interface PierLocal {
+  dock: DockDef
+  /** Along the pier: 0 at the beach, `PIER_LEN` at the head, then the gangplank. */
+  px: number
+  /** Across the pier (0 = centreline). */
+  pz: number
+}
+
+/** Project a world point into each of an island's pier frames. */
+function pierLocals(w: World, lx: number, lz: number): PierLocal[] {
+  return w.def.docks.map((dock) => {
+    const dx = lx - dock.x
+    const dz = lz - dock.z
+    const c = Math.cos(dock.rot)
+    const s = Math.sin(dock.rot)
+    // Inverse of the pier group's rotation about Y (-dock.rot).
+    return { dock, px: dx * c + dz * s, pz: -dx * s + dz * c }
+  })
+}
+
+/** Deck height along a pier at `px`, in world Y (planks then gangplank). */
+function plankHeight(w: World, dock: DockDef, px: number): number {
+  // `rootY` is the plank centre at the beach; the walker stands on its top face.
+  const rootTop = Math.max(w.surfaceAt(dock.x, dock.z) + 0.4, -27.4) + 0.1
+  const t = Math.min(1, Math.max(0, px / PIER_LEN))
+  const head = rootTop + (PIER_HEAD_Y - rootTop) * t
+  if (px <= PIER_LEN) return head
+  return head + (FERRY_DECK_Y - head) * ((px - PIER_LEN) / GANGPLANK_LEN)
+}
+
+/**
+ * Is a world point standing on a pier (or its gangplank)? Returns the pier id
+ * and the deck height, so the walker can be carried out over the water instead
+ * of being stopped at the coast.
+ */
+export function pierAt(x: number, z: number): { id: string; y: number } | null {
+  const w = nearestWorld(x, z)
+  if (!w) return null
+  for (const p of pierLocals(w, x - w.def.origin[0], z - w.def.origin[1])) {
+    if (Math.abs(p.pz) > PIER_HALF_W + PIER_SLOP) continue
+    if (p.px < -0.6 - PIER_SLOP || p.px > PIER_LEN + GANGPLANK_LEN + PIER_END_MARGIN) continue
+    return { id: p.dock.id, y: plankHeight(w, p.dock, p.px) }
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // World-space queries (dispatch to the nearest island)
 // ---------------------------------------------------------------------------
 
 /** Terrain height at a world position (XZ). Returns Y. Sea level far from land. */
 export function getTerrainHeight(x: number, z: number): number {
+  // Planks override the ground so the walker stands on the boardwalk, not on
+  // the cliff face 35 units below it.
+  const pier = pierAt(x, z)
+  if (pier) return pier.y
   const w = nearestWorld(x, z)
   if (!w) return SEA_LEVEL
   return w.surfaceAt(x - w.def.origin[0], z - w.def.origin[1])
@@ -400,14 +475,32 @@ export function clampToBoundary(pos: { x: number; z: number }): void {
   const w = nearestWorldAlways(pos.x, pos.z)
   const ox = w.def.origin[0]
   const oz = w.def.origin[1]
-  const dx = pos.x - ox
-  const dz = pos.z - oz
-  const d = Math.hypot(dx, dz)
+  const lx = pos.x - ox
+  const lz = pos.z - oz
+
+  const d = Math.hypot(lx, lz)
   const r = w.def.walkRadius
+
+  // A pier carries the walker out past the coast. Steer onto the planks rather
+  // than clamping back to the island radius — and, mid-pier, catch a sideways
+  // overshoot before it becomes a long teleport back to the beach.
+  for (const p of pierLocals(w, lx, lz)) {
+    if (p.px < -0.6 || p.px > PIER_LEN + GANGPLANK_LEN + PIER_END_MARGIN) continue
+    const off = Math.abs(p.pz)
+    if (off > PIER_HALF_W && !(d > r && off <= PIER_CATCH)) continue
+    const px = Math.min(PIER_LEN + GANGPLANK_LEN, Math.max(-0.6, p.px))
+    const pz = Math.min(PIER_HALF_W, Math.max(-PIER_HALF_W, p.pz))
+    const c = Math.cos(p.dock.rot)
+    const s = Math.sin(p.dock.rot)
+    pos.x = ox + p.dock.x + px * c - pz * s
+    pos.z = oz + p.dock.z + px * s + pz * c
+    return
+  }
+
   if (d > r) {
     const k = r / d
-    pos.x = ox + dx * k
-    pos.z = oz + dz * k
+    pos.x = ox + lx * k
+    pos.z = oz + lz * k
   }
 }
 

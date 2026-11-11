@@ -99,7 +99,7 @@ export interface WorldMapDef {
   /** World-space centre of the island. */
   origin: [number, number]
   terrainRadius: number
-  /** Radius of the visible stone ring / energy wall. */
+  /** Inland radius decorations and wildlife spawn inside (no longer drawn). */
   boundaryRadius: number
   /** Radius the walker is clamped to — reaches the sandy beach at the coast. */
   walkRadius: number

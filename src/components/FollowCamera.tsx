@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { getTerrainHeight, type PlayerState } from '../game/world'
+import { getTerrainHeight, pierAt, type PlayerState } from '../game/world'
 
 interface FollowCameraProps {
   playerRef: React.MutableRefObject<PlayerState>
@@ -111,7 +111,11 @@ export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZon
     const offsetX = -Math.sin(camYaw) * backDist
     const offsetZ = -Math.cos(camYaw) * backDist
 
-    const targetY = targetPosition.y * (seaMode ? 1 : 0.55) + height + 2.2
+    // Over open water (and while walking a pier down to the boat) the target
+    // sinks far below y=0, so track its height fully instead of the damped
+    // over-land factor.
+    const fullTrack = seaMode || pierAt(targetPosition.x, targetPosition.z) !== null
+    const targetY = targetPosition.y * (fullTrack ? 1 : 0.55) + height + 2.2
 
     const desiredX = targetPosition.x + offsetX
     const desiredZ = targetPosition.z + offsetZ
