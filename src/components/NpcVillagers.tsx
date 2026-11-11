@@ -5,7 +5,7 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import * as THREE from 'three'
 import { VILLAGERS, npcRegistry, type NpcEntry, type VillagerDef } from '../game/npcs'
 import { CLIP, MODELS, modelScale } from '../game/models'
-import { BOUNDARY_RADIUS, getTerrainHeight, isWalkable, type PlayerState } from '../game/world'
+import { getTerrainHeight, isWalkable, type PlayerState } from '../game/world'
 import { sfx } from '../game/audio'
 
 const WALK_SPEED = 1.5
@@ -148,7 +148,7 @@ const Villager: React.FC<{
         const r = 1.5 + Math.random() * def.wander
         const nx = home.current.x + Math.cos(a) * r
         const nz = home.current.y + Math.sin(a) * r
-        if (isWalkable(nx, nz) && Math.hypot(nx, nz) < BOUNDARY_RADIUS - 6) {
+        if (isWalkable(nx, nz)) {
           target.current.set(nx, nz)
           mode.current = 'walk'
         }

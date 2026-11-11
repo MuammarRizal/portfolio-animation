@@ -3,7 +3,7 @@
 // renders a real rigged GLB (src/game/models.ts).
 import type { Vector3 } from 'three'
 import type { ModelKey } from './models'
-import { ZONES } from '../data/portfolio'
+import { ISLANDS, ZONES } from '../data/portfolio'
 
 export interface NpcEntry {
   id: string
@@ -42,6 +42,16 @@ function homeAt(zoneId: string | null, dx: number, dz: number): [number, number]
   if (!zoneId) return [dx, dz]
   const [x, z] = zonePos(zoneId)
   return [x + dx, z + dz]
+}
+
+/**
+ * Home point on a named island: relative to one of its outposts, or to the
+ * island's own spawn plaza when `zoneId` is null. Works in world coordinates.
+ */
+function homeOn(islandId: string, zoneId: string | null, dx: number, dz: number): [number, number] {
+  if (zoneId) return homeAt(zoneId, dx, dz)
+  const origin = ISLANDS[islandId]?.origin ?? [0, 0]
+  return [origin[0] + dx, origin[1] + dz]
 }
 
 export const HIJAU_VILLAGERS: VillagerDef[] = [
@@ -119,9 +129,88 @@ export const HIJAU_VILLAGERS: VillagerDef[] = [
   },
 ]
 
+// ---------------------------------------------------------------------------
+// Pulau Salju — the tundra population (world coordinates via `homeOn`)
+// ---------------------------------------------------------------------------
+export const SALJU_VILLAGERS: VillagerDef[] = [
+  {
+    id: 'npc-beku',
+    name: 'Pak Beku',
+    role: 'Penjaga Alun-Alun Es',
+    home: homeOn('salju', null, 4.5, 6.5),
+    wander: 4,
+    model: 'barbarian',
+    accent: '#67e8f9',
+  },
+  {
+    id: 'npc-sania',
+    name: 'Bu Sani',
+    role: 'Pemandu Musim Dingin',
+    home: homeOn('salju', null, -5.5, 4.5),
+    wander: 3.5,
+    model: 'rogue',
+    accent: '#f9a8d4',
+  },
+  {
+    id: 'npc-arca-es',
+    name: 'Arca Beku',
+    role: 'Juru Bahasa Kabut',
+    home: homeOn('salju', 'salju-about', 5, -6),
+    wander: 4,
+    model: 'mage',
+    accent: '#93c5fd',
+  },
+  {
+    id: 'npc-ava-es',
+    name: 'Teknisi Ine',
+    role: 'Perakit Mesin Salju',
+    home: homeOn('salju', 'salju-projects', -5, -5),
+    wander: 4,
+    model: 'rogueHooded',
+    accent: '#c4b5fd',
+  },
+  {
+    id: 'npc-biner-es',
+    name: 'Kurir Sled',
+    role: 'Pengantar Paket Data',
+    home: homeOn('salju', 'salju-projects', 6, 5),
+    wander: 5,
+    model: 'rogue',
+    accent: '#fde68a',
+  },
+  {
+    id: 'npc-sage-es',
+    name: 'Nexus Beku',
+    role: 'Penjaga Arsip',
+    home: homeOn('salju', 'salju-skills', 4, 6),
+    wander: 4,
+    model: 'mage',
+    accent: '#5eead4',
+  },
+  {
+    id: 'npc-suara',
+    name: 'Penjaga Suar',
+    role: 'Operator Suar Badai',
+    home: homeOn('salju', 'salju-contact', -4, 6),
+    wander: 4,
+    model: 'knight',
+    accent: '#fbbf24',
+  },
+  {
+    id: 'npc-badai',
+    name: 'Anak Badai',
+    role: 'Penjelajah Tundra',
+    home: homeOn('salju', null, 0, 9),
+    wander: 6,
+    model: 'rogueHooded',
+    accent: '#a5f3fc',
+  },
+]
+
 /** Villagers grouped by island; the registry stays flat for the radar. */
 export const ISLAND_VILLAGERS: Record<string, VillagerDef[]> = {
   hijau: HIJAU_VILLAGERS,
+  salju: SALJU_VILLAGERS,
 }
 
 /** Every villager across every island (the HUD counts these). */

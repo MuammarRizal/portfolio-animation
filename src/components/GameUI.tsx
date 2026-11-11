@@ -18,6 +18,7 @@ import {
   UserRound,
   Home,
   MessageSquare,
+  Sailboat,
 } from 'lucide-react'
 import * as THREE from 'three'
 import { ZONES, type HouseData, type ZoneData } from '../data/portfolio'
@@ -28,6 +29,7 @@ import { Minimap } from './Minimap'
 import { QuestTracker, type QuestState } from './QuestTracker'
 import { VirtualJoystick } from './VirtualJoystick'
 import { CharacterPicker } from './CharacterPicker'
+import type { DockPrompt } from './Boat'
 
 /** Tiny pill toggle used in the settings menu. */
 const Switch: React.FC<{ on: boolean }> = ({ on }) => (
@@ -40,6 +42,7 @@ interface GameUIProps {
   activeZone: ZoneData | null
   activeHouse: HouseData | null
   activeNpc: VillagerDef | null
+  boatPrompt: DockPrompt | null
   playerPos: THREE.Vector3
   playerRotation: number
   gemCount: number
@@ -58,6 +61,7 @@ interface GameUIProps {
   onOpenZone: (zone: ZoneData) => void
   onOpenHouse: (house: HouseData) => void
   onOpenNpc: (npc: VillagerDef) => void
+  onBoatAction: () => void
   onTeleport: (zone: ZoneData) => void
   onVirtualMove: (dir: { x: number; y: number }) => void
   onVirtualJump: () => void
@@ -69,6 +73,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   activeZone,
   activeHouse,
   activeNpc,
+  boatPrompt,
   playerPos,
   playerRotation,
   gemCount,
@@ -87,6 +92,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onOpenZone,
   onOpenHouse,
   onOpenNpc,
+  onBoatAction,
   onTeleport,
   onVirtualMove,
   onVirtualJump,
@@ -432,6 +438,10 @@ export const GameUI: React.FC<GameUIProps> = ({
               <span className="font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700 border border-blue-200">E / BUKA</span>
             </div>
             <div className="flex justify-between items-center">
+              <span>Setir Kapal</span>
+              <span className="font-mono bg-sky-50 px-2 py-0.5 rounded text-sky-700 border border-sky-200">Dekati Dermaga + E</span>
+            </div>
+            <div className="flex justify-between items-center">
               <span>Serang</span>
               <span className="font-mono bg-rose-50 px-2 py-0.5 rounded text-rose-700 border border-rose-200">F / SERANG</span>
             </div>
@@ -445,14 +455,32 @@ export const GameUI: React.FC<GameUIProps> = ({
             </div>
           </div>
           <p className="text-[11px] text-slate-500 border-t border-slate-200 pt-2 leading-relaxed">
-            ☀️ Siang cerah, rumput bergoyang, dan satwa liar berkeliaran. Kumpulkan ke-16 kristal energi untuk jadi <b>Master Pulau</b> — atau berburu hewan buat tambah skor! 🗡️
-            Singgah ke 9 rumah warga yang tersebar di 3 dusun buat intip konten portfolio & cerita kecil. 🏘️
+            ☀️ Siang cerah, rumput bergoyang, dan satwa liar berkeliaran. Kumpulkan <b>32 kristal energi</b> di dua pulau buat jadi <b>Master Kepulauan</b> — atau berburu hewan buat tambah skor! 🗡️
+            Singgah ke <b>18 rumah warga</b> buat intip konten portfolio & cerita kecil. 🏘️ Kalau mau suasana beda, naik kapal dari dermaga menuju <b>Pulau Salju</b> di seberang laut. ⛵❄️
           </p>
         </div>
       )}
 
       {/* 3. CENTER INTERACTION PROMPT */}
-      {activeNpc ? (
+      {boatPrompt ? (
+        <div className="self-center pointer-events-auto animate-bounce mb-2">
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onBoatAction()
+            }}
+            className="flex items-center gap-3 px-6 py-3 rounded-full bg-white/90 hover:bg-white border-2 text-slate-900 font-bold shadow-xl backdrop-blur-md transition transform hover:scale-105 cursor-pointer touch-none"
+            style={{ borderColor: '#0ea5e9', boxShadow: '0 0 25px #0ea5e960' }}
+          >
+            <Sailboat className="w-4 h-4 text-sky-600" />
+            <span>
+              {boatPrompt.kind === 'board' ? `Naiki kapal di ${boatPrompt.dock.name}` : 'Berlabuh di dermaga'}
+            </span>
+            <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">[E]</span>
+          </button>
+        </div>
+      ) : activeNpc ? (
         <div className="self-center pointer-events-auto animate-bounce mb-2">
           <button
             onPointerDown={(e) => {
@@ -528,7 +556,20 @@ export const GameUI: React.FC<GameUIProps> = ({
 
           <div className="flex flex-col items-end gap-2.5 touch-none">
             <div className="flex items-center gap-2">
-              {activeNpc ? (
+              {boatPrompt ? (
+                <button
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onBoatAction()
+                  }}
+                  className="w-13 h-13 rounded-full flex flex-col items-center justify-center font-black shadow-lg border-2 transition active:scale-95 animate-bounce touch-none"
+                  style={{ backgroundColor: '#0ea5e9dd', borderColor: '#ffffff', color: '#ffffff', boxShadow: '0 0 16px #0ea5e9' }}
+                >
+                  <Sailboat className="w-5 h-5" />
+                  <span className="text-[8px] tracking-tight">{boatPrompt.kind === 'board' ? 'NAIK' : 'TURUN'}</span>
+                </button>
+              ) : activeNpc ? (
                 <button
                   onPointerDown={(e) => {
                     e.preventDefault()

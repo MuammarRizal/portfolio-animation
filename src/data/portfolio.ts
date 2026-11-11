@@ -483,7 +483,248 @@ const SALJU_GEMS: GemData[] = [
   { id: 32, x: 0, y: 2.2, z: -58, color: '#fde68a' },
 ]
 
-const SALJU_HOUSES: HouseData[] = []
+const SALJU_HOUSES: HouseData[] = [
+  // ---- Dusun Beku Utara (0, -38) ----
+  {
+    id: 'salju-bio',
+    name: 'Pondok Catatan',
+    subtitle: 'Buku harian yang membeku di rak utara',
+    color: '#38bdf8',
+    x: -6.5,
+    z: -39,
+    rot: 0.6,
+    scale: 1.0,
+    roof: 'gable',
+    palette: 'wood',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '🧊',
+        heading: 'Catatan Beku',
+        body: 'Muammar Rizal — teknolog kreatif & engineer 3D fullstack dari Jakarta, Indonesia. Versi arsipnya gw simpan di sini biar awet.',
+      },
+      {
+        icon: '📖',
+        heading: 'Isi Buku',
+        body: 'Awalnya cuma iseng bikin kubus muter di browser, sekarang jadi pulau penuh.',
+        bullets: ['3+ tahun rekayasa perangkat lunak', '20+ proyek rilis ke produksi', 'Hobi: shader, low-poly, dan optimasi FPS'],
+      },
+    ],
+  },
+  {
+    id: 'salju-workshop',
+    name: 'Bengkel Beku',
+    subtitle: 'Meja kerja yang nggak pernah debu-an',
+    color: '#818cf8',
+    x: 0,
+    z: -35.5,
+    rot: 0,
+    scale: 1.08,
+    roof: 'gable',
+    palette: 'stone',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '🧰',
+        heading: 'Rak Proyek',
+        body: 'Proyek yang gw simpan di suhu beku biar nggak lapuk:',
+        bullets: PROJECTS.map((p) => p.title),
+      },
+      {
+        icon: '❄️',
+        heading: 'Cara Kerja',
+        body: 'Tiap proyek mulai dari prototipe kecil, dioptimasi pelan-pelan sampai enteng dipakai di HP.',
+      },
+    ],
+  },
+  {
+    id: 'salju-library',
+    name: 'Rak Ilmu Beku',
+    subtitle: 'Buku-buku yang nggak bisa basi',
+    color: '#2dd4bf',
+    x: 6.5,
+    z: -39,
+    rot: -0.6,
+    scale: 0.94,
+    roof: 'hip',
+    palette: 'plaster',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '📚',
+        heading: 'Daftar Ilmu',
+        body: 'Kategori kemampuan yang gw bekukan di rak ini:',
+        bullets: SKILLS_CATEGORIES.map((c) => c.category),
+      },
+      {
+        icon: '🚀',
+        heading: 'Terus Dipelajari',
+        body: 'Sekarang lagi ngulik WebGPU, TSL, dan animasi karakter real-time.',
+      },
+    ],
+  },
+
+  // ---- Dusun Beku Selatan (0, 38) ----
+  {
+    id: 'salju-post',
+    name: 'Kantor Pos Salju',
+    subtitle: 'Kurir sled siap antar pesan lu',
+    color: '#fbbf24',
+    x: -6.5,
+    z: 39,
+    rot: -0.6,
+    scale: 1.0,
+    roof: 'gable',
+    palette: 'plaster',
+    kind: 'portfolio',
+    sections: [
+      {
+        icon: '✉️',
+        heading: 'Kirim Pesan',
+        body: 'Punya ide kolaborasi atau butuh engineer 3D fullstack? Kirim aja, badai pun gw tembus.',
+      },
+      {
+        icon: '📮',
+        heading: 'Kontak',
+        body: 'Kurir pos kami siap antar pesan lu:',
+        bullets: [
+          'GitHub: github.com/MuammarRizal',
+          'Repo pulau ini: portfolio-animation',
+          'Kontak lengkap ada di Suar Badai',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'salju-cafe',
+    name: 'Warung Sup Panas',
+    subtitle: 'Hangat, cocok buat ngobrol lama',
+    color: '#b45309',
+    x: 0,
+    z: 35.5,
+    rot: Math.PI,
+    scale: 1.05,
+    roof: 'hip',
+    palette: 'wood',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🍲',
+        heading: 'Hangat Dulu',
+        body: 'Kata warga, sup di sini bisa naikin FPS 20%. (Nggak terbukti, tapi nikmat.)',
+      },
+      {
+        icon: '💡',
+        heading: 'Fakta Dunia',
+        body: 'Pulau ini dirender real-time di browser pakai Three.js — nggak ada video, semua dihitung ulang tiap frame.',
+      },
+    ],
+  },
+  {
+    id: 'salju-attic',
+    name: 'Gudang Es',
+    subtitle: 'Kotak-kotak kenangan yang awet beku',
+    color: '#7c3aed',
+    x: 6.5,
+    z: 39,
+    rot: 0.6,
+    scale: 0.96,
+    roof: 'gable',
+    palette: 'wood',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '📦',
+        heading: 'Isi Gudang',
+        body: 'Kotak-kotak kenangan dari masa awal belajar ngoding, dibekukan biar nggak rusak.',
+      },
+      {
+        icon: '🕹️',
+        heading: 'Stack Pertama',
+        body: 'Perjalanan toolchain gw dari dulu:',
+        bullets: ['HTML/CSS → JavaScript', 'React → Next.js', 'Three.js → shader & game loop'],
+      },
+    ],
+  },
+
+  // ---- Dusun Beku Timur (44, 6) ----
+  {
+    id: 'salju-shaderhut',
+    name: 'Saung Pualam',
+    subtitle: 'Rumus ajaib yang nggambar ke layar beku',
+    color: '#06b6d4',
+    x: 40.5,
+    z: 1.5,
+    rot: 1.2,
+    scale: 0.9,
+    roof: 'tower',
+    palette: 'plaster',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🌊',
+        heading: 'Rumus Ritual',
+        body: 'Shader itu cuma rumus matematika yang menggambar ke layar. Seremnya cuma di nama.',
+      },
+      {
+        icon: '✨',
+        heading: 'Tips WebGL',
+        body: 'Kalau frame drop, cek tiga hal ini dulu:',
+        bullets: ['Kurangi draw call — pakai instancing', 'Batasi pixel ratio (dpr)', 'Matikan bayangan kalau nggak perlu'],
+      },
+    ],
+  },
+  {
+    id: 'salju-villager',
+    name: 'Pondok Penduduk',
+    subtitle: 'Warga tundra yang ramah',
+    color: '#059669',
+    x: 46,
+    z: 6,
+    rot: Math.PI / 2,
+    scale: 1.1,
+    roof: 'hip',
+    palette: 'wood',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🧊',
+        heading: 'Penduduk',
+        body: 'Warga di pulau ini NPC prosedural — mereka jalan berkeliling tanpa naskah.',
+      },
+      {
+        icon: '👋',
+        heading: 'Sapa Mereka',
+        body: 'Coba datangi salah satu warga; kadang mereka ngasih komentar random.',
+      },
+    ],
+  },
+  {
+    id: 'salju-watchtower',
+    name: 'Menara Pantau',
+    subtitle: 'Menara pemantau dua pulau',
+    color: '#ef4444',
+    x: 40.5,
+    z: 10.5,
+    rot: 2.2,
+    scale: 0.92,
+    roof: 'tower',
+    palette: 'stone',
+    kind: 'flavor',
+    sections: [
+      {
+        icon: '🔭',
+        heading: 'Pos Pengawas',
+        body: 'Dari sini kelihatan Pulau Salju, dan kalau cerah, siluet Pulau Hijau di seberang laut.',
+      },
+      {
+        icon: '🎁',
+        heading: 'Easter Egg',
+        body: 'Kalau lu udah kumpulin semua kristal di dua pulau, konfeti bakal meledak. Selamat, Master Kepulauan!',
+      },
+    ],
+  },
+]
 
 /** All content that lives on one island (positions are island-local). */
 export interface IslandContent {
@@ -517,7 +758,7 @@ export const ISLANDS: Record<string, IslandContent> = {
     id: 'salju',
     name: 'Pulau Salju',
     subtitle: 'Tundra beku di seberang laut',
-    origin: [-190, 0],
+    origin: [-320, 0],
     zones: SALJU_ZONES,
     gems: SALJU_GEMS,
     houses: SALJU_HOUSES,

@@ -46,8 +46,10 @@ export interface World {
   def: WorldMapDef
   decorations: Decoration[]
   colliders: Collider[]
-  /** Terrain height at an island-local point. */
+  /** Terrain height at an island-local point (flat top, no rim cliffs). */
   terrainAt(x: number, z: number): number
+  /** Rendered ground height at an island-local point (rim cliffs included). */
+  surfaceAt(x: number, z: number): number
   /** Distance from an island-local point to the nearest roadway. */
   distanceToPath(x: number, z: number): number
   /** May ground cover (grass, flowers) grow at an island-local point? */
@@ -103,6 +105,28 @@ function localTerrainHeight(def: WorldMapDef, x: number, z: number): number {
   }
 
   return h
+}
+
+/** Width of the cliff skirt between the island's flat top and its rim. */
+const RIM_WIDTH = 15
+/** How far the rim plunges below the flat top before the underside cone takes over. */
+const RIM_DROP = 44
+
+/**
+ * How far the ground has fallen at radius `r`: zero on the island's flat top,
+ * then a quadratic plunge to `RIM_DROP` under the rim. Sharing this between the
+ * terrain mesh and the gameplay height query keeps the walkable ground and the
+ * visible cliff in agreement all the way down to the waterline.
+ */
+function rimDepth(def: WorldMapDef, r: number): number {
+  if (r <= def.terrainRadius) return 0
+  const t = Math.min(1, (r - def.terrainRadius) / RIM_WIDTH)
+  return t * t * RIM_DROP
+}
+
+/** Rendered ground height at an island-local point (rim cliffs included). */
+function localSurfaceHeight(def: WorldMapDef, x: number, z: number): number {
+  return localTerrainHeight(def, x, z) - rimDepth(def, Math.hypot(x, z))
 }
 
 /** Distance from an island-local point to the nearest ancient roadway. */
@@ -249,6 +273,7 @@ function buildWorld(def: WorldMapDef): World {
     decorations,
     colliders: buildColliders(def, decorations),
     terrainAt: (x, z) => localTerrainHeight(def, x, z),
+    surfaceAt: (x, z) => localSurfaceHeight(def, x, z),
     distanceToPath: (x, z) => localDistanceToPath(def, x, z),
     groundCoverAllowed: (x, z) => groundCoverAllowed(def, forbidden, x, z),
     groundCoverForbidden: forbidden,
@@ -306,7 +331,7 @@ function nearestWorldAlways(x: number, z: number): World {
 export function getTerrainHeight(x: number, z: number): number {
   const w = nearestWorld(x, z)
   if (!w) return SEA_LEVEL
-  return w.terrainAt(x - w.def.origin[0], z - w.def.origin[1])
+  return w.surfaceAt(x - w.def.origin[0], z - w.def.origin[1])
 }
 
 /** Distance from a world point to the nearest ancient roadway (Infinity at sea). */
@@ -329,7 +354,7 @@ export function isWalkable(x: number, z: number): boolean {
   if (!w) return false
   const lx = x - w.def.origin[0]
   const lz = z - w.def.origin[1]
-  if (Math.hypot(lx, lz) > w.def.boundaryRadius - 5) return false
+  if (Math.hypot(lx, lz) > w.def.walkRadius - 4) return false
   for (const m of w.def.mountains) {
     if (Math.hypot(lx - m.x, lz - m.z) < m.radius * 0.8) return false
   }
@@ -370,7 +395,7 @@ export function resolveCollisions(pos: { x: number; z: number }, radius: number)
   }
 }
 
-/** Keep a point inside the nearest island's circular boundary. */
+/** Keep a point inside the nearest island's walkable circle (which reaches the beach). */
 export function clampToBoundary(pos: { x: number; z: number }): void {
   const w = nearestWorldAlways(pos.x, pos.z)
   const ox = w.def.origin[0]
@@ -378,13 +403,60 @@ export function clampToBoundary(pos: { x: number; z: number }): void {
   const dx = pos.x - ox
   const dz = pos.z - oz
   const d = Math.hypot(dx, dz)
-  const r = w.def.boundaryRadius
+  const r = w.def.walkRadius
   if (d > r) {
     const k = r / d
     pos.x = ox + dx * k
     pos.z = oz + dz * k
   }
 }
+
+// ---------------------------------------------------------------------------
+// Docks (world coordinates)
+// ---------------------------------------------------------------------------
+
+/** A pier, shifted into world space for gameplay code outside the island group. */
+export interface Dock {
+  id: string
+  name: string
+  /** Boarding spot on the beach (world). */
+  x: number
+  z: number
+  rot: number
+  boatX: number
+  boatZ: number
+  boatRot: number
+}
+
+/** Every pier across every island, in world coordinates. */
+export const DOCKS: Dock[] = WORLDS.flatMap((w) =>
+  w.def.docks.map((d) => ({
+    id: d.id,
+    name: d.name,
+    x: d.x + w.def.origin[0],
+    z: d.z + w.def.origin[1],
+    rot: d.rot,
+    boatX: d.boatX + w.def.origin[0],
+    boatZ: d.boatZ + w.def.origin[1],
+    boatRot: d.boatRot,
+  }))
+)
+
+/** Rectangular sea box that keeps a boat inside the archipelago. */
+export const SEA_BOUNDS = (() => {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const w of WORLDS) {
+    const [ox, oz] = w.def.origin
+    minX = Math.min(minX, ox)
+    maxX = Math.max(maxX, ox)
+    minZ = Math.min(minZ, oz)
+    maxZ = Math.max(maxZ, oz)
+  }
+  return { minX: minX - 110, maxX: maxX + 110, minZ: minZ - 170, maxZ: maxZ + 170 }
+})()
 
 // ---------------------------------------------------------------------------
 // Back-compat exports for the primary island (renderers read these directly)

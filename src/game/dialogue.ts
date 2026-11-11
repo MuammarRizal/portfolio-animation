@@ -288,6 +288,262 @@ export const DIALOGUES: Record<string, DialogueTree> = {
       },
     },
   },
+
+  // ---- Pak Beku: guardian of the frozen plaza ----
+  'npc-beku': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Hoho, ada yang berani nyebrang laut ke pulau beku ini. Gw Pak Beku, penjaga alun-alun es. Mau ngobrol apa?',
+        choices: [
+          { label: 'Pulau ini pulau apa?', next: 'island' },
+          { label: 'Kenapa dingin banget?', next: 'cold' },
+          { label: 'Ada yang beda dari pulau seberang?', next: 'diff' },
+          bye,
+        ],
+      },
+      island: {
+        id: 'island',
+        text: 'Ini Pulau Salju — arsip kedua dari portfolio yang sama. Empat penjurunya: kuil kabut, galeri es, arsip beku, dan suar badai.',
+        choices: [back, bye],
+      },
+      cold: {
+        id: 'cold',
+        text: 'Dingin itu bonus, bro. Salju nutupin bug di tekstur, dan pengunjung jadi pengen cepet balik. Efisien!',
+        choices: [back, bye],
+      },
+      diff: {
+        id: 'diff',
+        text: 'Yang bikin pulau ini ada: kapal. Di dermaga ada perahu kayuh yang bisa lu setir sendiri. Nggak ada auto-pilot, semua manual.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Bu Sani: winter guide ----
+  'npc-sania': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Adik manis! Gw Bu Sani, pemandu musim dingin. Baru turun dari kapal ya? Tanya aja kalau bingung.',
+        choices: [
+          { label: 'Gimana cara balik ke pulau lama?', next: 'boat' },
+          { label: 'Kristal di sini di mana aja?', next: 'gems' },
+          { label: 'Ada tips jalan di salju?', next: 'tips' },
+          bye,
+        ],
+      },
+      boat: {
+        id: 'boat',
+        text: 'Ke dermaga, deketin kapalnya, tekan [E] buat naik. Terus setir pakai WASD sampai ketemu pantai pulau seberang, tekan [E] lagi buat turun.',
+        choices: [back, bye],
+      },
+      gems: {
+        id: 'gems',
+        text: 'Ada 16 kristal beku di pulau ini — totalnya 32 se-kepulauan. Warnanya biru, ungu, toska, dan kuning gading. Beberapa nyempil di tebing.',
+        choices: [back, bye],
+      },
+      tips: {
+        id: 'tips',
+        text: 'Salju licin di mata, tapi tanahnya nggak. Yang perlu lu hati-hati cuma pinggir tebing — di luar batas batu berdiri, dasar laut nunggu.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Arca Beku: keeper of the identity hut ----
+  'npc-arca-es': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Kabut menyambutmu, pengembara. Aku Arca Beku, penjaga catatan identitas di kuil ini. Dengarkan, atau pergi?',
+        choices: [
+          { label: 'Siapa yang bikin semua ini?', next: 'who' },
+          { label: 'Kenapa ada dua pulau?', next: 'two' },
+          { label: 'Kenapa identitas harus dibekukan?', next: 'freeze' },
+          bye,
+        ],
+      },
+      who: {
+        id: 'who',
+        text: 'Muammar Rizal — teknolog kreatif dari Jakarta. Ia merakit dunia ini dari Three.js dan React, dan membiarkannya hidup di browser tanpa server.',
+        choices: [back, bye],
+      },
+      two: {
+        id: 'two',
+        text: 'Satu pulau terlalu kecil untuk seluruh ceritanya. Maka ia membelah diri: pulau matahari untuk awal, pulau salju untuk arsip yang ingin awet.',
+        choices: [back, bye],
+      },
+      freeze: {
+        id: 'freeze',
+        text: 'Supaya nggak lapuk dimakan waktu. Skill yang ia kunci di sini dulu pernah ia lupakan; sekarang disimpan beku biar bisa dibuka lagi kapan pun.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Teknisi Ine: frozen workshop engineer ----
+  'npc-ava-es': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Eh tamu! Gw Ine, teknisi di galeri es ini. Semua mesin di sini dijalanin pakai sarung tangan wol. Mau lihat?',
+        choices: [
+          { label: 'Proyek apa yang disimpan di sini?', next: 'projects' },
+          { label: 'Bedanya bengkel ini sama yang di pulau lama?', next: 'diff' },
+          { label: 'Mesinnya nggak beku?', next: 'humor' },
+          bye,
+        ],
+      },
+      projects: {
+        id: 'projects',
+        text: 'Sama kayak arsipnya: portfolio 3D ini, platform cloud SaaS, dan mesin alur kerja AI. Semuanya dicadangkan di sini, jaga-jaga.',
+        choices: [back, bye],
+      },
+      diff: {
+        id: 'diff',
+        text: 'Kalau bengkel seberang penuh perkakas, di sini penuh kabel penghangat. Sisanya sama: mulai prototipe kecil, genjot sampai produksi.',
+        choices: [back, bye],
+      },
+      humor: {
+        id: 'humor',
+        text: 'Beku itu fitur, bro. Frame drop aja gw bekukan, jadi nggak ada yang drop sama sekali.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Kurir Sled: data packets on ice ----
+  'npc-biner-es': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Wus! Hampir keserempet lu. Gw Kurir Sled, pengantar paket data lintas pulau. Ada titipan nggak?',
+        choices: [
+          { label: 'Nggak ada titipan, santai aja', next: 'ok' },
+          { label: 'Lu antar paket dari pulau mana?', next: 'route' },
+          { label: 'Kontaknya yang bikin pulau gimana?', next: 'contact' },
+          bye,
+        ],
+      },
+      ok: {
+        id: 'ok',
+        text: 'Ya udah, gw lanjut kayuh. Kalau lu butuh, ke dermaga aja — di situ ada perahu yang bisa lu pakai, lebih cepet dari sled gw.',
+        choices: [back, bye],
+      },
+      route: {
+        id: 'route',
+        text: 'Dari Pulau Hijau tiap pagi, nyebrang laut, mendarat di dermaga salju. Paket paling berat isinya cuma satu field "opsional". Klasik.',
+        choices: [back, bye],
+      },
+      contact: {
+        id: 'contact',
+        text: 'Yang bikin pulau ada di GitHub: MuammarRizal. Atau ke Suar Badai di penjuru tenggara, kirim pesan dari situ, badai pun nyampe.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Nexus Beku: keeper of the archive ----
+  'npc-sage-es': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Arsip beku menyambutmu. Aku penjaga catatan. Bertanya, dan aku akan membuka rak yang tepat.',
+        choices: [
+          { label: 'Ilmu apa yang paling awet?', next: 'skill' },
+          { label: 'Kenapa disimpan beku?', next: 'why' },
+          { label: 'Rencana selanjutnya?', next: 'roadmap' },
+          bye,
+        ],
+      },
+      skill: {
+        id: 'skill',
+        text: 'Dasar-dasarnya: struktur data, algoritma, dan rasa penasaran. Teknologi boleh berganti tiap tahun, tapi tiga hal itu nggak pernah basi.',
+        choices: [back, bye],
+      },
+      why: {
+        id: 'why',
+        text: 'Karena memori manusia bocor. Yang ditulis bisa dilupakan; yang dibekukan bisa dibuka lagi kapan pun kita butuh.',
+        choices: [back, bye],
+      },
+      roadmap: {
+        id: 'roadmap',
+        text: 'WebGPU dan TSL sudah kucatat di rak depan. Animasi karakter real-time menyusul. Arsipku selalu bertambah, tak pernah cair.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Penjaga Suar: beacon operator ----
+  'npc-suara': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'HATI-HATI ANGIN! Hah, ketemu juga orang di tengah badai. Gw penjaga Suar Badai. Mau ngapain ke sini?',
+        choices: [
+          { label: 'Gw mau ngajak kolab', next: 'hire' },
+          { label: 'Suar ini buat apa?', next: 'why' },
+          { label: 'Badainya sering?', next: 'storm' },
+          bye,
+        ],
+      },
+      hire: {
+        id: 'hire',
+        text: 'Bagus! Yang bikin pulau ini terbuka buat kolaborasi. Suar ini nembak pesan langsung ke dia. Tulis ide lu, kirim, beres.',
+        choices: [back, bye],
+      },
+      why: {
+        id: 'why',
+        text: 'Suar ini jangkauannya paling jauh dari semua mercusuar. Dari sini, sinyalnya bisa nyampe ke pulau mana pun — termasuk yang belum dibikin.',
+        choices: [back, bye],
+      },
+      storm: {
+        id: 'storm',
+        text: 'Tiap sore. Tapi tenang, warga sini udah kebal. Kalau lu kedinginan, mampir aja ke Warung Sup Panas di dusun selatan.',
+        choices: [back, bye],
+      },
+    },
+  },
+
+  // ---- Anak Badai: tundra kid explorer ----
+  'npc-badai': {
+    start: 'hub',
+    nodes: {
+      hub: {
+        id: 'hub',
+        text: 'Wihii! Orang baru! Gw Anak Badai, paling jago lari di tundra. Mau bocoran?',
+        choices: [
+          { label: 'Bocoran apa? Bocoran apa?', next: 'bocoran' },
+          { label: 'Ada tempat seru di sini?', next: 'spots' },
+          { label: 'Pernah nyasar ke pulau seberang?', next: 'across' },
+          bye,
+        ],
+      },
+      bocoran: {
+        id: 'bocoran',
+        text: 'Kalau semua kristal di DUA pulau udah kekumpul, konfetinya dua kali lipat! Gw ngitung sendiri, serius, bang!',
+        choices: [back, bye],
+      },
+      spots: {
+        id: 'spots',
+        text: 'Menara Pantau di dusun timur. Dari situ keliatan pulau seberang kayak titik hijau di garis laut. Kalau cerah aja sih.',
+        choices: [back, bye],
+      },
+      across: {
+        id: 'across',
+        text: 'Pernah! Gw nyempil di perahu pak Beku. Di seberang rumputnya ijo banget, aneh. Di sini putih semua, lebih damai.',
+        choices: [back, bye],
+      },
+    },
+  },
 }
 
 /** Fallback line if an NPC somehow has no authored tree. */

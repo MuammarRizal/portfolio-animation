@@ -359,7 +359,10 @@ export const Character: React.FC<CharacterProps> = ({
   })
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
+    <group
+      ref={groupRef}
+      position={[playerRef.current.position.x, 0, playerRef.current.position.z]}
+    >
       <mesh ref={shadowRef} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.5, 32]} />
         <meshBasicMaterial color="#050811" transparent opacity={0.4} />

@@ -7,6 +7,8 @@ interface FollowCameraProps {
   playerRef: React.MutableRefObject<PlayerState>
   zoomInZone: boolean
   cameraYawRef: React.MutableRefObject<number>
+  /** Over open water the target sits far below y=0 — track its height fully. */
+  seaMode?: boolean
 }
 
 /**
@@ -14,7 +16,7 @@ interface FollowCameraProps {
  * Reads the player purely from a ref (no per-frame React state), and keeps the
  * camera above the terrain so it never clips through hills and mountains.
  */
-export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZone, cameraYawRef }) => {
+export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZone, cameraYawRef, seaMode = false }) => {
   const { camera, gl } = useThree()
 
   const currentPos = useRef(new THREE.Vector3(0, 12, 18))
@@ -100,7 +102,7 @@ export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZon
     const offsetX = -Math.sin(camYaw) * backDist
     const offsetZ = -Math.cos(camYaw) * backDist
 
-    const targetY = targetPosition.y * 0.55 + height + 2.2
+    const targetY = targetPosition.y * (seaMode ? 1 : 0.55) + height + 2.2
 
     const desiredX = targetPosition.x + offsetX
     const desiredZ = targetPosition.z + offsetZ

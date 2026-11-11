@@ -1,15 +1,8 @@
 import React, { useMemo } from 'react'
 import * as THREE from 'three'
-import { ZONES, GEMS, HOUSES, type ZoneData } from '../data/portfolio'
-import {
-  ARCHWAYS,
-  BOUNDARY_RADIUS,
-  DECORATIONS,
-  HILLS,
-  MOUNTAINS,
-  PATHS,
-  TERRAIN_RADIUS,
-} from '../game/world'
+import { ZONES, GEMS, type ZoneData } from '../data/portfolio'
+import { getWorld } from '../game/world'
+import { MAP_DEFS } from '../game/maps'
 import { creatureRegistry } from '../game/creatures'
 import { npcRegistry } from '../game/npcs'
 
@@ -17,11 +10,10 @@ interface MinimapProps {
   playerPos: THREE.Vector3
   playerRotation: number
   onTeleport: (zone: ZoneData) => void
+  /** Height of the map card; the width follows the archipelago's aspect. */
   size?: number
   collectedIds?: number[]
 }
-
-const MAP_RADIUS = 66
 
 const CREATURE_COLOR: Record<string, string> = {
   deer: '#b45309',
@@ -29,114 +21,154 @@ const CREATURE_COLOR: Record<string, string> = {
   rabbit: '#e2e8f0',
 }
 
-/** Static world layer (island, roads, hills, mountains, props) — memoized per size. */
-const StaticLayer = React.memo(function StaticLayer({ size }: { size: number }) {
-  const c = size / 2
-  const pad = Math.max(8, size * 0.1)
-  const scale = (c - pad) / MAP_RADIUS
-  const px = (x: number) => c + x * scale
-  const py = (z: number) => c + z * scale
-  const detailed = size >= 100
+/** World-space box covering every island (plus a little sea), and the mapping
+ * that squeezes it into the card. */
+function useSeaMap(width: number, height: number) {
+  return useMemo(() => {
+    let minX = Infinity
+    let maxX = -Infinity
+    let minZ = Infinity
+    let maxZ = -Infinity
+    for (const def of MAP_DEFS) {
+      const r = def.terrainRadius
+      minX = Math.min(minX, def.origin[0] - r)
+      maxX = Math.max(maxX, def.origin[0] + r)
+      minZ = Math.min(minZ, def.origin[1] - r)
+      maxZ = Math.max(maxZ, def.origin[1] + r)
+    }
+    const padX = 14
+    const padZ = 14
+    minX -= padX
+    maxX += padX
+    minZ -= padZ
+    maxZ += padZ
+
+    const scale = Math.min(width / (maxX - minX), height / (maxZ - minZ))
+    const cx = (minX + maxX) / 2
+    const cz = (minZ + maxZ) / 2
+    const px = (x: number) => width / 2 + (x - cx) * scale
+    const py = (z: number) => height / 2 + (z - cz) * scale
+    return { px, py, scale }
+  }, [width, height])
+}
+
+/** Static world layer (islands, roads, hills, mountains, props) — memoized. */
+const StaticLayer = React.memo(function StaticLayer({
+  width,
+  height,
+}: {
+  width: number
+  height: number
+}) {
+  const { px, py, scale } = useSeaMap(width, height)
+  const detailed = width >= 170
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 pointer-events-none">
-      {/* ocean */}
-      <rect width={size} height={size} fill="#bae6fd" />
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 pointer-events-none">
+      {/* open sea */}
+      <rect width={width} height={height} fill="#bae6fd" />
 
-      {/* landmass */}
-      <circle cx={c} cy={c} r={TERRAIN_RADIUS * scale} fill="#86efac" />
+      {MAP_DEFS.map((def) => {
+        const world = getWorld(def.id)
+        const [ox, oz] = def.origin
+        const palette = def.palette
+        return (
+          <g key={def.id}>
+            {/* landmass */}
+            <circle cx={px(ox)} cy={py(oz)} r={def.terrainRadius * scale} fill={palette.ground} />
 
-      {/* rolling hills */}
-      {HILLS.map((h, i) => (
-        <circle key={`h${i}`} cx={px(h.x)} cy={py(h.z)} r={h.radius * scale} fill="#4ade80" opacity={0.55} />
-      ))}
+            {/* rolling hills */}
+            {def.hills.map((h, i) => (
+              <circle
+                key={`h${i}`}
+                cx={px(ox + h.x)}
+                cy={py(oz + h.z)}
+                r={h.radius * scale}
+                fill={palette.groundLight}
+                opacity={0.6}
+              />
+            ))}
 
-      {/* mountains */}
-      {MOUNTAINS.map((m, i) => (
-        <g key={`m${i}`}>
-          <circle cx={px(m.x)} cy={py(m.z)} r={m.radius * scale} fill="#94a3b8" />
-          <circle cx={px(m.x)} cy={py(m.z)} r={m.radius * scale * 0.55} fill="#cbd5e1" opacity={0.85} />
-        </g>
-      ))}
+            {/* mountains */}
+            {def.mountains.map((m, i) => (
+              <g key={`m${i}`}>
+                <circle cx={px(ox + m.x)} cy={py(oz + m.z)} r={m.radius * scale} fill={palette.rock} />
+                <circle
+                  cx={px(ox + m.x)}
+                  cy={py(oz + m.z)}
+                  r={m.radius * scale * 0.55}
+                  fill={palette.snow}
+                  opacity={0.85}
+                />
+              </g>
+            ))}
 
-      {/* ancient roads */}
-      {PATHS.map((p, i) => (
-        <line
-          key={`p${i}`}
-          x1={px(p[0])}
-          y1={py(p[2])}
-          x2={px(p[1])}
-          y2={py(p[3])}
-          stroke="#fde68a"
-          strokeWidth={detailed ? 4 : 3}
-          strokeLinecap="round"
-          opacity={0.95}
-        />
-      ))}
+            {/* ancient roads */}
+            {def.paths.map((p, i) => (
+              <line
+                key={`p${i}`}
+                x1={px(ox + p[0])}
+                y1={py(oz + p[2])}
+                x2={px(ox + p[1])}
+                y2={py(oz + p[3])}
+                stroke={palette.path}
+                strokeWidth={detailed ? 3 : 2}
+                strokeLinecap="round"
+                opacity={0.95}
+              />
+            ))}
 
-      {/* props: trees & rocks (skipped on the tiny mobile radar) */}
-      {detailed &&
-        DECORATIONS.filter((d) => d.type === 'tree' || d.type === 'rock').map((d, i) => (
-          <circle
-            key={`d${i}`}
-            cx={px(d.x)}
-            cy={py(d.z)}
-            r={d.type === 'tree' ? 1.8 : 1.2}
-            fill={d.type === 'tree' ? '#15803d' : '#78716c'}
-            opacity={0.75}
-          />
-        ))}
+            {/* props: trees & rocks (skipped on the tiny mobile radar) */}
+            {detailed &&
+              world.decorations
+                .filter((d) => d.type === 'tree' || d.type === 'rock')
+                .map((d, i) => (
+                  <circle
+                    key={`d${i}`}
+                    cx={px(ox + d.x)}
+                    cy={py(oz + d.z)}
+                    r={d.type === 'tree' ? 1.5 : 1}
+                    fill={d.type === 'tree' ? '#15803d' : '#78716c'}
+                    opacity={0.7}
+                  />
+                ))}
 
-      {/* archways */}
-      {ARCHWAYS.map((a, i) => (
-        <rect
-          key={`a${i}`}
-          x={px(a.x) - 1.6}
-          y={py(a.z) - 1.6}
-          width={3.2}
-          height={3.2}
-          rx={0.6}
-          fill="#f59e0b"
-          opacity={0.85}
-        />
-      ))}
+            {/* piers */}
+            {def.docks.map((d) => (
+              <circle key={d.id} cx={px(ox + d.boatX)} cy={py(oz + d.boatZ)} r={2.6} fill="#0ea5e9" stroke="#ffffff" strokeWidth={0.8} />
+            ))}
 
-      {/* village houses (solid mini-zones) */}
-      {HOUSES.map((h, i) => (
-        <g key={`hs${i}`}>
-          <rect
-            x={px(h.x) - 2.2}
-            y={py(h.z) - 2.2}
-            width={4.4}
-            height={4.4}
-            rx={0.9}
-            fill={h.color}
-            stroke="#ffffff"
-            strokeWidth={0.7}
-            opacity={0.92}
-          />
-          <rect
-            x={px(h.x) - 1.1}
-            y={py(h.z) - 2.6}
-            width={2.2}
-            height={0.9}
-            rx={0.3}
-            fill="#ffffff"
-            opacity={0.85}
-          />
-        </g>
-      ))}
+            {/* village houses (solid mini-zones) */}
+            {def.houses.map((h, i) => (
+              <g key={`hs${i}`}>
+                <rect
+                  x={px(ox + h.x) - 1.9}
+                  y={py(oz + h.z) - 1.9}
+                  width={3.8}
+                  height={3.8}
+                  rx={0.8}
+                  fill={h.color}
+                  stroke="#ffffff"
+                  strokeWidth={0.6}
+                  opacity={0.92}
+                />
+              </g>
+            ))}
 
-      {/* island boundary */}
-      <circle
-        cx={c}
-        cy={c}
-        r={BOUNDARY_RADIUS * scale}
-        fill="none"
-        stroke="#facc15"
-        strokeWidth={detailed ? 2 : 1.5}
-        strokeDasharray={detailed ? '5 4' : undefined}
-      />
+            {/* visible stone ring */}
+            <circle
+              cx={px(ox)}
+              cy={py(oz)}
+              r={def.boundaryRadius * scale}
+              fill="none"
+              stroke="#facc15"
+              strokeWidth={detailed ? 1.6 : 1.2}
+              strokeDasharray={detailed ? '4 3' : undefined}
+              opacity={0.9}
+            />
+          </g>
+        )
+      })}
     </svg>
   )
 })
@@ -145,15 +177,14 @@ export const Minimap: React.FC<MinimapProps> = ({
   playerPos,
   playerRotation,
   onTeleport,
-  size = 130,
+  size = 150,
   collectedIds = [],
 }) => {
-  const center = size / 2
-  const pad = Math.max(8, size * 0.1)
-  const scale = (center - pad) / MAP_RADIUS
-  const px = (x: number) => center + x * scale
-  const py = (z: number) => center + z * scale
-  const detailed = size >= 100
+  const aspect = 2.05
+  const height = size
+  const width = Math.round(size * aspect)
+  const { px, py } = useSeaMap(width, height)
+  const detailed = width >= 170
 
   const collected = useMemo(() => new Set(collectedIds), [collectedIds])
 
@@ -171,6 +202,24 @@ export const Minimap: React.FC<MinimapProps> = ({
     [playerPos, collectedIds]
   )
 
+  // Which island is the hero nearest? Drives the header label and how far the
+  // fast-travel hotspots reach — you cannot teleport across open water, the
+  // boat is the only way between islands.
+  const nearest = useMemo(() => {
+    let best = MAP_DEFS[0]
+    let bestD = Infinity
+    for (const def of MAP_DEFS) {
+      const d = Math.hypot(playerPos.x - def.origin[0], playerPos.z - def.origin[1])
+      if (d < bestD) {
+        bestD = d
+        best = def
+      }
+    }
+    const label = bestD > best.terrainRadius + 30 ? 'Laut Lepas' : best.name
+    const zoneIds = new Set(getWorld(best.id).def.zones.map((z) => z.id))
+    return { label, zoneIds }
+  }, [playerPos])
+
   const playerCoord = { px: px(playerPos.x), py: py(playerPos.z) }
 
   return (
@@ -179,17 +228,17 @@ export const Minimap: React.FC<MinimapProps> = ({
         <span className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" /> RADAR
         </span>
-        <span className="text-[9px] font-mono text-slate-400">DUNIA</span>
+        <span className="text-[9px] font-mono text-slate-400 uppercase">{nearest.label}</span>
       </div>
 
       <div
         className="relative rounded-xl overflow-hidden border border-white/80 bg-sky-50/80"
-        style={{ width: size, height: size }}
+        style={{ width, height }}
       >
-        <StaticLayer size={size} />
+        <StaticLayer width={width} height={height} />
 
-        {/* Dynamic layer: gems + creatures */}
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 pointer-events-none">
+        {/* Dynamic layer: gems + creatures + villagers */}
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 pointer-events-none">
           {GEMS.map((g) => {
             const isCollected = collected.has(g.id)
             return (
@@ -197,7 +246,7 @@ export const Minimap: React.FC<MinimapProps> = ({
                 key={g.id}
                 cx={px(g.x)}
                 cy={py(g.z)}
-                r={detailed ? 2.4 : 2}
+                r={detailed ? 2.2 : 1.8}
                 fill={isCollected ? '#cbd5e1' : g.color}
                 opacity={isCollected ? 0.5 : 1}
               />
@@ -209,7 +258,7 @@ export const Minimap: React.FC<MinimapProps> = ({
               key={cr.id}
               cx={px(cr.pos.x)}
               cy={py(cr.pos.z)}
-              r={detailed ? 2.2 : 1.8}
+              r={detailed ? 2 : 1.7}
               fill={CREATURE_COLOR[cr.type] ?? '#94a3b8'}
               stroke="#1e293b"
               strokeWidth={0.4}
@@ -218,7 +267,7 @@ export const Minimap: React.FC<MinimapProps> = ({
 
           {/* Villagers: square markers so they read as humans, not animals */}
           {villagers.map((npc) => {
-            const s = detailed ? 4.4 : 3.6
+            const s = detailed ? 4 : 3.2
             return (
               <rect
                 key={npc.id}
@@ -239,6 +288,8 @@ export const Minimap: React.FC<MinimapProps> = ({
         {ZONES.map((zone) => {
           const zx = px(zone.position[0])
           const zy = py(zone.position[2])
+          const reachable = nearest.zoneIds.has(zone.id)
+          if (!reachable) return null
           return (
             <button
               key={zone.id}
@@ -248,7 +299,7 @@ export const Minimap: React.FC<MinimapProps> = ({
               title={`Teleport ke ${zone.title}`}
             >
               <div
-                className="w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center shadow-md animate-pulse"
+                className="w-3 h-3 rounded-full border border-white flex items-center justify-center shadow-md animate-pulse"
                 style={{ backgroundColor: zone.color }}
               >
                 <div className="w-1 h-1 rounded-full bg-white" />
@@ -256,12 +307,6 @@ export const Minimap: React.FC<MinimapProps> = ({
             </button>
           )
         })}
-
-        {/* Spawn plaza */}
-        <div
-          className="absolute w-2 h-2 rounded-full bg-slate-400 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ left: `${center}px`, top: `${center}px` }}
-        />
 
         {/* Player marker */}
         <div

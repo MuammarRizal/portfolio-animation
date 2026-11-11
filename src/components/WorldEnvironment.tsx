@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { type HousePalette, type HouseRoof } from '../data/portfolio'
 import { GrassField } from './GrassField'
-import type { BiomePalette } from '../game/maps'
+import type { BiomePalette, DockDef } from '../game/maps'
 import { HOUSE_D, HOUSE_H, HOUSE_W, type Decoration, type World } from '../game/world'
 
 interface WorldEnvironmentProps {
@@ -196,8 +196,54 @@ function buildMaterials(p: BiomePalette) {
   }
 }
 
-/** One instanced draw call for a batch of identical decorations. */
-const InstancedBatch: React.FC<{
+const PIER_MAT = new THREE.MeshStandardMaterial({ color: '#7a5c3a', roughness: 0.9, flatShading: true })
+const PIER_POST_MAT = new THREE.MeshStandardMaterial({ color: '#5c4530', roughness: 0.92, flatShading: true })
+
+/**
+ * A timber boardwalk running from the beach down into the sea, plus a mooring
+ * post. Drawn in island-local space; the boat itself lives in `Boat.tsx`.
+ */
+const DockPier: React.FC<{ dock: DockDef; world: World }> = ({ dock, world }) => {
+  const SEG = 7
+  const LEN = 15
+  const rootY = Math.max(world.surfaceAt(dock.x, dock.z) + 0.4, -27.4)
+  const yAt = (i: number) => THREE.MathUtils.lerp(rootY, -29.45, i / (SEG - 1))
+
+  return (
+    <group position={[dock.x, 0, dock.z]} rotation={[0, -dock.rot, 0]}>
+      {Array.from({ length: SEG }, (_, i) => {
+        const x = (i / (SEG - 1)) * LEN
+        const y = yAt(i)
+        return (
+          <group key={i} position={[x, y, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[1.7, 0.2, 2.1]} />
+              <primitive object={PIER_MAT} attach="material" />
+            </mesh>
+            {i % 2 === 0 &&
+              [-0.9, 0.9].map((pz) => (
+                <mesh key={pz} position={[0, -1.6, pz]}>
+                  <cylinderGeometry args={[0.09, 0.11, 3.2, 6]} />
+                  <primitive object={PIER_POST_MAT} attach="material" />
+                </mesh>
+              ))}
+          </group>
+        )
+      })}
+      {/* mooring post + lantern at the far end */}
+      <mesh position={[LEN + 0.4, yAt(SEG - 1) + 1.1, 0]}>
+        <cylinderGeometry args={[0.12, 0.15, 2.4, 6]} />
+        <primitive object={PIER_POST_MAT} attach="material" />
+      </mesh>
+      <mesh position={[LEN + 0.4, yAt(SEG - 1) + 2.4, 0]}>
+        <sphereGeometry args={[0.22, 10, 10]} />
+        <meshStandardMaterial color="#fcd34d" emissive="#f59e0b" emissiveIntensity={1.3} />
+      </mesh>
+    </group>
+  )
+}
+
+/** One instanced draw call for a batch of identical decorations. */const InstancedBatch: React.FC<{
   geometry: THREE.BufferGeometry
   material: THREE.Material
   items: Placement[]
@@ -359,7 +405,6 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
     const pos = geo.attributes.position as THREE.BufferAttribute
     const colors = new Float32Array(pos.count * 3)
     const tmp = new THREE.Color()
-    const half = terrainSize * 0.5
     const rockHeight = palette.rockHeight
     const snowHeight = palette.snowHeight
 
@@ -368,13 +413,11 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
       const z = pos.getZ(i)
       const r = Math.hypot(x, z)
       const terrainY = world.terrainAt(x, z)
-
-      let cliff = 0
-      if (r > terrainRadius) {
-        const t = Math.min(1, (r - terrainRadius) / (half - terrainRadius))
-        cliff = t * t * 44
-      }
-      pos.setY(i, terrainY - cliff)
+      // The shared surface query already includes the rim cliffs, so the ground
+      // the player walks on and the mesh they see are the same height.
+      const surfaceY = world.surfaceAt(x, z)
+      const cliff = terrainY - surfaceY
+      pos.setY(i, surfaceY)
 
       tmp.copy(C_GRASS)
       const n = (Math.sin(x * 0.6) * Math.cos(z * 0.7) + 1) * 0.5
@@ -505,6 +548,11 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({
           <meshStandardMaterial color={palette.rock} roughness={0.75} flatShading />
         </mesh>
       </group>
+
+      {/* 6b. DOCKS — timber piers running down into the water */}
+      {def.docks.map((d) => (
+        <DockPier key={d.id} dock={d} world={world} />
+      ))}
 
       {/* 7. DECORATIONS (instanced — ~8 draw calls for the whole realm) */}
       {parts.tree.length > 0 && (

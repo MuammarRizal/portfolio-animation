@@ -48,15 +48,16 @@ export interface Decoration {
   rot: number
 }
 
-/** A pier the player can board a boat from. */
+/** A pier the player can board a boat from. All values island-local. */
 export interface DockDef {
   id: string
   name: string
-  /** Boarding spot on land (island-local space). */
+  /** Boarding spot on the beach. */
   x: number
   z: number
+  /** Yaw of the pier (0 = pointing +X, along the pier's length). */
   rot: number
-  /** Where the moored boat floats, at sea. */
+  /** Where the moored boat floats, out at sea. */
   boatX: number
   boatZ: number
   boatRot: number
@@ -98,7 +99,10 @@ export interface WorldMapDef {
   /** World-space centre of the island. */
   origin: [number, number]
   terrainRadius: number
+  /** Radius of the visible stone ring / energy wall. */
   boundaryRadius: number
+  /** Radius the walker is clamped to — reaches the sandy beach at the coast. */
+  walkRadius: number
   hills: Hill[]
   mountains: Hill[]
   paths: Array<[number, number, number, number]>
@@ -138,6 +142,7 @@ const islandHijau: WorldMapDef = {
   origin: hijau.origin,
   terrainRadius: 66,
   boundaryRadius: 60,
+  walkRadius: 67,
   hills: [
     { x: -20, z: 8, radius: 15, height: 4.6 },
     { x: 24, z: -8, radius: 13, height: 4.0 },
@@ -194,7 +199,18 @@ const islandHijau: WorldMapDef = {
     oceanSurface: '#2a86ad',
     oceanSky: '#cfe6ff',
   },
-  docks: [],
+  docks: [
+    {
+      id: 'hijau-pier',
+      name: 'Dermaga Pulau Hijau',
+      x: -62,
+      z: -20,
+      rot: Math.PI,
+      boatX: -80,
+      boatZ: -20,
+      boatRot: Math.PI / 2,
+    },
+  ],
   zones: hijau.zones,
   gems: hijau.gems,
   houses: hijau.houses,
@@ -217,6 +233,7 @@ const islandSalju: WorldMapDef = {
   origin: salju.origin,
   terrainRadius: 66,
   boundaryRadius: 60,
+  walkRadius: 67,
   hills: [
     { x: -20, z: 8, radius: 15, height: 5.2 },
     { x: 24, z: -8, radius: 13, height: 4.4 },
@@ -273,7 +290,18 @@ const islandSalju: WorldMapDef = {
     oceanSurface: '#3f97bd',
     oceanSky: '#dceaf7',
   },
-  docks: [],
+  docks: [
+    {
+      id: 'salju-pier',
+      name: 'Dermaga Pulau Salju',
+      x: 62,
+      z: -20,
+      rot: 0,
+      boatX: 80,
+      boatZ: -20,
+      boatRot: -Math.PI / 2,
+    },
+  ],
   zones: salju.zones,
   gems: salju.gems,
   houses: salju.houses,
