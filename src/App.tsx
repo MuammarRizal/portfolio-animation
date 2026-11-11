@@ -10,7 +10,7 @@ import { FollowCamera } from './components/FollowCamera'
 import { ZonePlatform } from './components/ZonePlatform'
 import { WorldEnvironment } from './components/WorldEnvironment'
 import { Wildlife } from './components/Wildlife'
-import { Boat, type BoatState, type DockPrompt } from './components/Boat'
+import { Boat, type DockPrompt } from './components/Boat'
 import { NpcVillagers } from './components/NpcVillagers'
 import { GameUI } from './components/GameUI'
 import { PortfolioModal } from './components/PortfolioModal'
@@ -142,12 +142,9 @@ interface SceneProps {
   virtualJumpRef: React.MutableRefObject<boolean>
   virtualSprintRef: React.MutableRefObject<boolean>
   attackRef: React.MutableRefObject<boolean>
-  driving: boolean
-  boatRef: React.MutableRefObject<BoatState>
-  boatActionRef: React.MutableRefObject<() => void>
+  riding: boolean
   onDockPromptChange: (prompt: DockPrompt | null) => void
-  onBoardBoat: (dock: Dock) => void
-  onLeaveBoat: (dock: Dock) => void
+  onBoatArrive: (dock: Dock) => void
   onZoneChange: (zone: ZoneData | null) => void
   onHouseChange: (house: HouseData | null) => void
   onTalkChange: (npc: VillagerDef | null) => void
@@ -174,12 +171,9 @@ const Scene = memo(function Scene(props: SceneProps) {
     virtualJumpRef,
     virtualSprintRef,
     attackRef,
-    driving,
-    boatRef,
-    boatActionRef,
+    riding,
     onDockPromptChange,
-    onBoardBoat,
-    onLeaveBoat,
+    onBoatArrive,
     onZoneChange,
     onHouseChange,
     onTalkChange,
@@ -223,7 +217,7 @@ const Scene = memo(function Scene(props: SceneProps) {
         playerRef={playerRef}
         zoomInZone={Boolean(modalZone || modalHouse || modalNpc)}
         cameraYawRef={cameraYawRef}
-        seaMode={driving}
+        seaMode={riding}
       />
 
       <Suspense fallback={null}>
@@ -252,34 +246,29 @@ const Scene = memo(function Scene(props: SceneProps) {
         ))}
 
         <Boat
-          driving={driving}
-          boatRef={boatRef}
+          riding={riding}
+          quality={quality}
           playerRef={playerRef}
-          keys={keys}
-          virtualInputRef={virtualInputRef}
-          actionRef={boatActionRef}
           onPromptChange={onDockPromptChange}
-          onBoard={onBoardBoat}
-          onDisembark={onLeaveBoat}
+          onArrive={onBoatArrive}
         />
 
-        {!driving && (
-          <Character
-            preset={character}
-            keys={keys}
-            cameraYawRef={cameraYawRef}
-            playerRef={playerRef}
-            virtualInputRef={virtualInputRef}
-            virtualJumpRef={virtualJumpRef}
-            virtualSprintRef={virtualSprintRef}
-            attackRef={attackRef}
-            collectedRef={collectedRef}
-            quality={quality}
-            onZoneChange={onZoneChange}
-            onHouseChange={onHouseChange}
-            onCollectGem={onCollectGem}
-          />
-        )}
+        <Character
+          preset={character}
+          keys={keys}
+          cameraYawRef={cameraYawRef}
+          playerRef={playerRef}
+          virtualInputRef={virtualInputRef}
+          virtualJumpRef={virtualJumpRef}
+          virtualSprintRef={virtualSprintRef}
+          attackRef={attackRef}
+          collectedRef={collectedRef}
+          quality={quality}
+          riding={riding}
+          onZoneChange={onZoneChange}
+          onHouseChange={onHouseChange}
+          onCollectGem={onCollectGem}
+        />
 
         <SceneReadyProbe onReady={onSceneReady} />
       </Suspense>
@@ -306,15 +295,8 @@ export default function App() {
   const virtualSprintRef = useRef(false)
   const attackRef = useRef(false)
 
-  // Boat handling: the archipelago's dinghy, plus what the player can do now.
-  const boatActionRef = useRef<() => void>(() => {})
-  const boatRef = useRef<BoatState>({
-    x: DOCKS[0].boatX,
-    z: DOCKS[0].boatZ,
-    yaw: DOCKS[0].boatRot,
-    speed: 0,
-  })
-  const [driving, setDriving] = useState(false)
+  // Ferry: App only tracks whether the hero is aboard; `Boat` owns the rest.
+  const [riding, setRiding] = useState(false)
   const [dockPrompt, setDockPrompt] = useState<DockPrompt | null>(null)
 
   // Coarse HUD snapshot (throttled) — only the 2D overlay consumes this
@@ -374,6 +356,26 @@ export default function App() {
 
   const totalGems = GEMS.length
 
+  // Compass hint: bearing + distance to the nearest pier, recomputed whenever
+  // the coarse HUD snapshot ticks (~10 Hz). Hidden while the hero is aboard.
+  const dockHint = useMemo(() => {
+    if (riding) return null
+    const p = hud.pos
+    let best: { name: string; dist: number; angle: number } | null = null
+    for (const d of DOCKS) {
+      const dx = d.x - p.x
+      const dz = d.z - p.z
+      const dist = Math.hypot(dx, dz)
+      if (best && dist >= best.dist) continue
+      // Bearing relative to where the hero faces (model forward = +Z).
+      let angle = Math.atan2(dx, dz) - hud.rot
+      while (angle < -Math.PI) angle += Math.PI * 2
+      while (angle > Math.PI) angle -= Math.PI * 2
+      best = { name: d.name, dist, angle }
+    }
+    return best
+  }, [hud, riding])
+
   // Throttled HUD sync (~10 Hz)
   useEffect(() => {
     const id = setInterval(() => {
@@ -423,13 +425,9 @@ export default function App() {
 
   const onSceneReady = useCallback(() => setSceneReady(true), [])
 
-  // Take the helm: the hero steps off the beach and the camera swings to the boat.
-  const handleBoardBoat = useCallback((dock: Dock) => {
-    boatRef.current.x = dock.boatX
-    boatRef.current.z = dock.boatZ
-    boatRef.current.yaw = dock.boatRot
-    boatRef.current.speed = 0
-    setDriving(true)
+  // Climb aboard: the ferry steams itself across, so we only flag the ride.
+  const handleBoardBoat = useCallback(() => {
+    setRiding(true)
     setDockPrompt(null)
     setActiveZone(null)
     setActiveHouse(null)
@@ -437,11 +435,11 @@ export default function App() {
     sfx.confirm()
   }, [])
 
-  // Hop back onto the beach at the pier the boat is tied to.
-  const handleLeaveBoat = useCallback((dock: Dock) => {
+  // The ferry has tied up — step the hero onto the destination pier's beach.
+  const handleBoatArrive = useCallback((dock: Dock) => {
     playerRef.current.position.set(dock.x, getTerrainHeight(dock.x, dock.z), dock.z)
-    playerRef.current.rotation = dock.rot + Math.PI
-    setDriving(false)
+    playerRef.current.rotation = Math.atan2(-Math.cos(dock.rot), -Math.sin(dock.rot))
+    setRiding(false)
     setDockPrompt(null)
     sfx.uiClose()
   }, [])
@@ -466,7 +464,7 @@ export default function App() {
       const anyModal = Boolean(modalZone || modalHouse || modalNpc)
       if (e.code === 'KeyE' && !anyModal) {
         // Priority: a boat at the pier beats a villager, which beats a zone, then a house.
-        if (dockPrompt) boatActionRef.current()
+        if (dockPrompt) handleBoardBoat()
         else if (activeNpc) openNpc(activeNpc)
         else if (activeZone) setModalZone(activeZone)
         else if (activeHouse) openHouse(activeHouse)
@@ -480,7 +478,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeZone, activeHouse, activeNpc, modalZone, modalHouse, modalNpc, openHouse, openNpc, dockPrompt])
+  }, [activeZone, activeHouse, activeNpc, modalZone, modalHouse, modalNpc, openHouse, openNpc, dockPrompt, handleBoardBoat])
 
   const handleTeleport = useCallback((zone: ZoneData) => {
     const x = zone.position[0]
@@ -535,12 +533,9 @@ export default function App() {
           virtualJumpRef={virtualJumpRef}
           virtualSprintRef={virtualSprintRef}
           attackRef={attackRef}
-          driving={driving}
-          boatRef={boatRef}
-          boatActionRef={boatActionRef}
+          riding={riding}
           onDockPromptChange={setDockPrompt}
-          onBoardBoat={handleBoardBoat}
-          onLeaveBoat={handleLeaveBoat}
+          onBoatArrive={handleBoatArrive}
           onZoneChange={onZoneChange}
           onHouseChange={onHouseChange}
           onTalkChange={onTalkChange}
@@ -557,6 +552,7 @@ export default function App() {
         activeHouse={activeHouse}
         activeNpc={activeNpc}
         boatPrompt={dockPrompt}
+        dockHint={dockHint}
         playerPos={hud.pos}
         playerRotation={hud.rot}
         gemCount={collectedGems.length}
@@ -575,7 +571,7 @@ export default function App() {
         onOpenZone={(zone) => setModalZone(zone)}
         onOpenHouse={openHouse}
         onOpenNpc={openNpc}
-        onBoatAction={() => boatActionRef.current()}
+        onBoatAction={handleBoardBoat}
         onTeleport={handleTeleport}
         onVirtualMove={handleVirtualMove}
         onVirtualJump={triggerMobileJump}

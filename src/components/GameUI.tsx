@@ -43,6 +43,8 @@ interface GameUIProps {
   activeHouse: HouseData | null
   activeNpc: VillagerDef | null
   boatPrompt: DockPrompt | null
+  /** Bearing + distance to the nearest pier, so the ferry is easy to find. */
+  dockHint: { name: string; dist: number; angle: number } | null
   playerPos: THREE.Vector3
   playerRotation: number
   gemCount: number
@@ -74,6 +76,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   activeHouse,
   activeNpc,
   boatPrompt,
+  dockHint,
   playerPos,
   playerRotation,
   gemCount,
@@ -310,6 +313,23 @@ export const GameUI: React.FC<GameUIProps> = ({
         </div>
       </header>
 
+      {/* DOCK COMPASS — a needle + distance to the nearest pier so the ferry
+          is easy to locate from anywhere on the island. */}
+      {dockHint && (
+        <div className="flex justify-center mt-1.5">
+          <div className={`flex items-center gap-2 ${panel} px-3 py-1.5 rounded-full text-[11px] font-bold text-sky-700`}>
+            <span className="flex items-center justify-center w-4 h-4">
+              <ArrowUp
+                className="w-3.5 h-3.5 text-sky-600 transition-transform duration-150"
+                style={{ transform: `rotate(${(dockHint.angle * 180) / Math.PI}deg)` }}
+              />
+            </span>
+            <span className="max-w-[10rem] truncate">{dockHint.name}</span>
+            <span className="font-mono text-slate-500">{Math.round(dockHint.dist)} m</span>
+          </div>
+        </div>
+      )}
+
       {/* 2. MIDDLE: QUEST LOG (LEFT) & MINIMAP (RIGHT) */}
       <div className="flex justify-between items-start pointer-events-none mt-2">
         <div className="pointer-events-auto hud-short-hide">
@@ -438,8 +458,8 @@ export const GameUI: React.FC<GameUIProps> = ({
               <span className="font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700 border border-blue-200">E / BUKA</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Setir Kapal</span>
-              <span className="font-mono bg-sky-50 px-2 py-0.5 rounded text-sky-700 border border-sky-200">Dekati Dermaga + E</span>
+              <span>Naik Kapal Feri</span>
+              <span className="font-mono bg-sky-50 px-2 py-0.5 rounded text-sky-700 border border-sky-200">Dekati Dermaga + E (otomatis)</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Serang</span>
@@ -456,7 +476,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           </div>
           <p className="text-[11px] text-slate-500 border-t border-slate-200 pt-2 leading-relaxed">
             ☀️ Siang cerah, rumput bergoyang, dan satwa liar berkeliaran. Kumpulkan <b>32 kristal energi</b> di dua pulau buat jadi <b>Master Kepulauan</b> — atau berburu hewan buat tambah skor! 🗡️
-            Singgah ke <b>18 rumah warga</b> buat intip konten portfolio & cerita kecil. 🏘️ Kalau mau suasana beda, naik kapal dari dermaga menuju <b>Pulau Salju</b> di seberang laut. ⛵❄️
+            Singgah ke <b>18 rumah warga</b> buat intip konten portfolio & cerita kecil. 🏘️ Kalau mau suasana beda, naik <b>kapal feri otomatis</b> dari dermaga menuju <b>Pulau Salju</b> di seberang laut. ⛵❄️
           </p>
         </div>
       )}
@@ -475,8 +495,9 @@ export const GameUI: React.FC<GameUIProps> = ({
           >
             <Sailboat className="w-4 h-4 text-sky-600" />
             <span>
-              {boatPrompt.kind === 'board' ? `Naiki kapal di ${boatPrompt.dock.name}` : 'Berlabuh di dermaga'}
+              {boatPrompt.kind === 'board' ? `Naiki Kapal Feri di ${boatPrompt.dock.name}` : 'Turun dari kapal'}
             </span>
+            <span className="text-[10px] font-semibold text-sky-600">otomatis</span>
             <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">[E]</span>
           </button>
         </div>

@@ -1,22 +1,17 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { OCEAN_SIZE, OCEAN_Y, SWELLS } from '../game/ocean'
 
 interface OceanProps {
   quality: 'high' | 'low'
 }
 
-/**
- * Sea level. The island's cliffs drop to roughly y = -44 at the rim and the
- * underside cone reaches y = -50, so a surface at -30 leaves the island rising
- * out of the water while the rock root stays mostly submerged.
- */
-const OCEAN_Y = -30
-/**
- * Big enough that the far edge is always beyond the scene fog (near 100,
- * far 300), so the horizon dissolves into the sky instead of showing a seam.
- */
-const OCEAN_SIZE = 1600
+/** The three swells, emitted straight from the shared definition. */
+const GERSTNER_CALLS = SWELLS.map(
+  (s) =>
+    `    disp += gerstner(vec2(${s.dir[0].toFixed(2)}, ${s.dir[1].toFixed(2)}), ${s.steepness.toFixed(2)}, ${s.wavelength.toFixed(1)}, grid, uTime, tangent, binormal);`
+).join('\n')
 
 const vertexShader = /* glsl */ `
   uniform float uTime;
@@ -51,9 +46,7 @@ const vertexShader = /* glsl */ `
     vec3 binormal = vec3(0.0, 0.0, 1.0);
     vec3 disp = vec3(0.0);
 
-    disp += gerstner(vec2(1.0, 0.32), 0.26, 90.0, grid, uTime, tangent, binormal);
-    disp += gerstner(vec2(-0.55, 1.0), 0.20, 48.0, grid, uTime, tangent, binormal);
-    disp += gerstner(vec2(0.42, -0.9), 0.16, 28.0, grid, uTime, tangent, binormal);
+${GERSTNER_CALLS}
 
     vec3 displaced = grid + disp;
     // Sum of the three amplitudes is ~5.96, so /12 maps the range onto 0..1.

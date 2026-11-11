@@ -28,6 +28,9 @@ interface CharacterProps {
   attackRef: React.MutableRefObject<boolean>
   collectedRef: React.MutableRefObject<Set<number>>
   quality?: 'high' | 'low'
+  /** True while the hero is a passenger on the ferry: input is ignored and the
+   * model is planted on the deck by whoever owns the ride. */
+  riding?: boolean
   onZoneChange: (zone: ZoneData | null) => void
   onHouseChange: (house: HouseData | null) => void
   onCollectGem: (id: number) => void
@@ -55,6 +58,7 @@ export const Character: React.FC<CharacterProps> = ({
   attackRef,
   collectedRef,
   quality = 'high',
+  riding = false,
   onZoneChange,
   onHouseChange,
   onCollectGem,
@@ -124,6 +128,29 @@ export const Character: React.FC<CharacterProps> = ({
     if (!group) return
 
     const dt = Math.min(delta, 0.1)
+
+    // ---- RIDING: planted on the ferry deck, no input, no physics ----
+    if (riding) {
+      const pp = playerRef.current.position
+      group.position.copy(pp)
+      let turn = playerRef.current.rotation - group.rotation.y
+      while (turn < -Math.PI) turn += Math.PI * 2
+      while (turn > Math.PI) turn -= Math.PI * 2
+      group.rotation.y += turn * Math.min(1, dt * 6)
+      velocity.current.set(0, 0, 0)
+      posY.current = 0
+      velY.current = 0
+      isGrounded.current = true
+      swingActive.current = false
+      attackRef.current = false
+      if (tiltRef.current) tiltRef.current.rotation.z = THREE.MathUtils.lerp(tiltRef.current.rotation.z, 0, dt * 8)
+      if (shadowRef.current) {
+        const shadowMat = shadowRef.current.material as THREE.MeshBasicMaterial
+        if (shadowMat) shadowMat.opacity = 0
+      }
+      fadeTo(CLIP.idle, 0.32)
+      return
+    }
 
     // 0. ADOPT EXTERNAL TELEPORT (fast travel writes playerRef.position)
     const pp = playerRef.current.position

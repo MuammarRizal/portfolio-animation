@@ -133,10 +133,28 @@ const StaticLayer = React.memo(function StaticLayer({
                   />
                 ))}
 
-            {/* piers */}
-            {def.docks.map((d) => (
-              <circle key={d.id} cx={px(ox + d.boatX)} cy={py(oz + d.boatZ)} r={2.6} fill="#0ea5e9" stroke="#ffffff" strokeWidth={0.8} />
-            ))}
+            {/* piers — the ferry's mooring, with a pulsing halo so the crossing
+                point is easy to spot on the sea map */}
+            {def.docks.map((d) => {
+              const dx = px(ox + d.boatX)
+              const dy = py(oz + d.boatZ)
+              return (
+                <g key={d.id}>
+                  <circle cx={dx} cy={dy} r={2.6} fill="none" stroke="#0ea5e9" strokeWidth={0.9} opacity={0.5}>
+                    <animate attributeName="r" values="2.6;6.8;2.6" dur="1.8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.55;0;0.55" dur="1.8s" repeatCount="indefinite" />
+                  </circle>
+                  <circle cx={dx} cy={dy} r={2.6} fill="#0ea5e9" stroke="#ffffff" strokeWidth={0.8} />
+                  {detailed && (
+                    <path
+                      d={`M ${dx} ${dy - 3.2} L ${dx + 2.1} ${dy + 0.4} L ${dx} ${dy + 0.4} Z`}
+                      fill="#ffffff"
+                      opacity={0.95}
+                    />
+                  )}
+                </g>
+              )
+            })}
 
             {/* village houses (solid mini-zones) */}
             {def.houses.map((h, i) => (

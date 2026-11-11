@@ -27,6 +27,10 @@ export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZon
   const lastPointerX = useRef(0)
   const dragCooldown = useRef(0)
   const activePointerId = useRef<number | null>(null)
+  // A short, snappy re-frame right after boarding / stepping off the ferry,
+  // so the camera settles on the deck instead of swooping across the water.
+  const recenter = useRef(0)
+  const wasSea = useRef(seaMode)
 
   useEffect(() => {
     const el = gl.domElement
@@ -75,6 +79,11 @@ export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZon
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1)
+    if (seaMode !== wasSea.current) {
+      wasSea.current = seaMode
+      recenter.current = 0.35
+    }
+    if (recenter.current > 0) recenter.current = Math.max(0, recenter.current - dt)
     const { position: targetPosition, rotation: targetRotation, sprinting: isSprinting, airborne: isAirborne } =
       playerRef.current
 
@@ -108,7 +117,7 @@ export const FollowCamera: React.FC<FollowCameraProps> = ({ playerRef, zoomInZon
     const desiredZ = targetPosition.z + offsetZ
     let desiredY = targetY
 
-    const posLerp = isAirborne ? 3.8 : 5.2
+    const posLerp = recenter.current > 0 ? 16 : isAirborne ? 3.8 : 5.2
     currentPos.current.x = THREE.MathUtils.lerp(currentPos.current.x, desiredX, dt * posLerp)
     currentPos.current.y = THREE.MathUtils.lerp(currentPos.current.y, desiredY, dt * posLerp)
     currentPos.current.z = THREE.MathUtils.lerp(currentPos.current.z, desiredZ, dt * posLerp)

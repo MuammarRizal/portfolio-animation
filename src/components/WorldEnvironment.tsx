@@ -239,11 +239,43 @@ const DockPier: React.FC<{ dock: DockDef; world: World }> = ({ dock, world }) =>
         <sphereGeometry args={[0.22, 10, 10]} />
         <meshStandardMaterial color="#fcd34d" emissive="#f59e0b" emissiveIntensity={1.3} />
       </mesh>
+
+      {/* beacon so the pier can be spotted from anywhere on the island */}
+      <mesh position={[LEN - 1.5, yAt(SEG - 2) + 17, 0]}>
+        <cylinderGeometry args={[0.6, 1.1, 34, 12, 1, true]} />
+        <meshBasicMaterial
+          color="#38bdf8"
+          transparent
+          opacity={0.17}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh position={[LEN - 1.5, yAt(SEG - 2) + 2.2, 0]}>
+        <sphereGeometry args={[0.34, 10, 10]} />
+        <meshBasicMaterial color="#7dd3fc" transparent opacity={0.85} />
+      </mesh>
+
+      {/* tall pennant at the shore end, facing the beach */}
+      <mesh position={[0.7, yAt(0) + 3.4, 0]}>
+        <cylinderGeometry args={[0.07, 0.09, 6.8, 6]} />
+        <primitive object={PIER_POST_MAT} attach="material" />
+      </mesh>
+      <mesh position={[1.25, yAt(0) + 6.1, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[1.15, 0.6]} />
+        <meshStandardMaterial
+          color="#0ea5e9"
+          emissive="#0284c7"
+          emissiveIntensity={0.6}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
     </group>
   )
 }
 
-/** One instanced draw call for a batch of identical decorations. */const InstancedBatch: React.FC<{
+/** One instanced draw call for a batch of identical decorations. */
+const InstancedBatch: React.FC<{
   geometry: THREE.BufferGeometry
   material: THREE.Material
   items: Placement[]
